@@ -1,0 +1,2946 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taulell de Narrativa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        handwriting: ['Caveat', 'cursive'],
+                    },
+                    colors: {
+                        'post-red': '#fca5a5',
+                        'post-pink': '#fbcfe8',
+                        'post-orange': '#fdba74',
+                        'post-yellow': '#fef08a',
+                        'post-lime': '#d9f99d',
+                        'post-green': '#bbf7d0',
+                        'post-cyan': '#a5f3fc',
+                        'post-blue': '#bfdbfe',
+                        'post-purple': '#e9d5ff',
+                        'post-gray': '#e2e8f0',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Fons d'estil suro */
+        .bg-cork {
+            background-color: #c89d66;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%238a5a2b' fill-opacity='0.15' d='M1 3h1v1H1V3zm2-2h1v1H3V1zM5 5h1v1H5V5zm2-2h1v1H7V3z'%3E%3C/path%3E%3C/svg%3E");
+        }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Arrossegament, ombres i redimensionament */
+        .note-card { transition: box-shadow 0.15s ease; }
+        .note-card:hover { box-shadow: 0 10px 20px -3px rgba(0, 0, 0, 0.4); }
+        
+        .note-dragging, .chapter-dragging { opacity: 0.4; }
+        
+        .drop-zone-active { background-color: rgba(255, 255, 255, 0.3); border-radius: 0.5rem; box-shadow: inset 0 0 10px rgba(0,0,0,0.1); }
+        .chapter-drop-zone-active { border: 2px dashed #3b82f6 !important; opacity: 0.8; }
+        
+        .pin { width: 12px; height: 12px; border-radius: 50%; background: #ef4444; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.3), 1px 1px 2px rgba(0,0,0,0.4); position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 10; }
+
+        /* Modificadors globals durant l'arrossegament per bloquejar distraccions visuals */
+        body.is-dragging * { cursor: grabbing !important; }
+        body.is-dragging .note-card:hover { box-shadow: none !important; }
+
+        #board-container.cursor-grabbing { cursor: grabbing !important; }
+
+        .chapter-col { position: absolute; resize: both; overflow: hidden; min-width: 250px; min-height: 200px; }
+        .scenes-container { flex: 1; overflow-y: auto; overflow-x: auto; position: relative; }
+
+        /* Estils personalitzats pel selector d'emojis */
+        .emoji-btn { transition: transform 0.1s; cursor: pointer; }
+        .emoji-btn:hover { transform: scale(1.3); }
+        
+        /* Ocultar barra scroll del selector d'emojis */
+        .emoji-picker-container::-webkit-scrollbar { width: 6px; }
+        .emoji-picker-container::-webkit-scrollbar-track { background: transparent; }
+        .emoji-picker-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-cork h-screen flex flex-col font-sans overflow-hidden text-slate-800">
+
+    <!-- Barra de navegació principal -->
+    <header class="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center z-20 flex-shrink-0 relative">
+        <div class="flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <h1 class="text-xl font-semibold tracking-wide hidden lg:block">Taulell Narratiu</h1>
+        </div>
+        <div class="flex gap-2 sm:gap-3 flex-wrap justify-end">
+            <button onclick="openNewProjectModal()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-2" title="Comença un nou projecte">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                <span class="hidden md:inline">Nou Projecte</span>
+            </button>
+
+            <button onclick="openWorkspaceModal()" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-2" title="Seleccionar o canviar la carpeta base">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" /></svg>
+                <span class="hidden xl:inline">Carpeta Base</span>
+            </button>
+
+            <button onclick="centerBoard()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-2" title="Centra i enfoca tot el taulell">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>
+                <span class="hidden lg:inline">Centra</span>
+            </button>
+
+            <input type="file" id="import-file" accept=".json" class="hidden" onchange="importProjectFile(event)">
+            <button onclick="document.getElementById('import-file').value=''; document.getElementById('import-file').click()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-2" title="Carrega un fitxer local (Mode Bàsic)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                <span class="hidden md:inline">Importa</span>
+            </button>
+            
+            <button onclick="saveCurrentProject()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-2" title="Desa els canvis al projecte actiu">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                <span class="hidden md:inline">Desa</span>
+            </button>
+
+            <button onclick="openChapterModal()" class="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-2" title="Nova Carpeta">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                <span class="hidden md:inline">Carpeta</span>
+            </button>
+            
+            <button onclick="createNewFreeNote()" class="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-2" title="Nova Nota Lliure al taulell">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                <span class="hidden md:inline">Nota</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sub-barra d'eines (Identitats, Estructures i Propp) -->
+    <div class="bg-slate-800 text-slate-300 px-6 py-2 flex justify-between items-center text-sm z-10 flex-shrink-0 shadow-sm border-t border-slate-700">
+        <button onclick="toggleCharactersSidebar()" class="hover:text-white font-medium flex items-center gap-2 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+            </svg>
+            Identitats
+        </button>
+        <div class="flex items-center gap-2">
+            <select id="structure-select" onchange="addStructure(this)" class="bg-slate-700 border border-slate-600 text-white rounded px-2 py-1 outline-none focus:border-blue-500 text-xs sm:text-sm cursor-pointer max-w-[200px] sm:max-w-md">
+                <option value="">Estructures Narratives</option>
+                <option value="hero">El Viatge de l'Heroi</option>
+                <option value="3acts">Estructura en 3 Actes</option>
+                <option value="snyder">15 Story Beats (B. Snyder)</option>
+            </select>
+            <select id="propp-select" onchange="addProppFunction(this)" class="bg-slate-700 border border-slate-600 text-white rounded px-2 py-1 outline-none focus:border-blue-500 text-xs sm:text-sm cursor-pointer max-w-[200px] sm:max-w-md">
+                <option value="">Funcions de Propp</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Títol de la història amb fons diferenciat -->
+    <div class="px-6 py-4 flex-shrink-0 z-10 relative bg-slate-100/95 backdrop-blur-md border-b border-slate-300 shadow-sm pointer-events-none">
+        <input type="text" id="story-title" class="pointer-events-auto text-3xl sm:text-4xl font-bold bg-transparent border-b-2 border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none transition-colors w-full max-w-4xl text-slate-800 placeholder-slate-400 drop-shadow-sm" placeholder="Títol de la història...">
+    </div>
+
+    <!-- Àrea principal (Llenç / Taulell) amb Pan & Zoom -->
+    <main class="flex-1 overflow-hidden relative cursor-grab select-none" id="board-container">
+        <!-- board-canvas rep els esdeveniments de drop lliures -->
+        <div id="board-canvas" class="absolute top-0 left-0 w-full h-full origin-top-left">
+            <!-- Els capítols i notes lliures es renderitzaran aquí mitjançant JavaScript -->
+        </div>
+        <!-- Input global ocult per pujar imatges a les notes ràpidament -->
+        <input type="file" id="global-image-upload" accept="image/*" class="hidden">
+    </main>
+
+    <!-- Barra lateral d'Identitats -->
+    <div id="characters-sidebar" class="fixed right-0 top-[112px] bottom-0 w-72 bg-slate-50 border-l border-slate-300 shadow-[-4px_0_15px_rgba(0,0,0,0.1)] transform translate-x-full transition-transform duration-300 z-40 flex flex-col pointer-events-auto">
+        <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-blue-600"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
+                Identitats
+            </h3>
+            <button onclick="closeCharactersSidebar()" class="text-slate-400 hover:text-slate-800 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L6 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        
+        <div class="p-4 border-b border-slate-200 bg-indigo-50/50">
+            <button onclick="window.open('https://gemini.google.com/app/93285230da39f0db', '_blank')" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors flex justify-center items-center gap-2 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Crear o modificar
+            </button>
+        </div>
+
+        <div class="p-3 text-xs text-slate-500 bg-slate-100 border-b border-slate-200">
+            Arrossega'ls al taulell o clica'ls per afegir-los com a nota lliure.
+        </div>
+        
+        <div class="p-4 overflow-y-auto flex-1 space-y-4" id="characters-list">
+            <!-- Es carregaran aquí els JSON ch_... -->
+        </div>
+
+        <!-- Botó de càrrega manual -->
+        <div class="p-4 border-t border-slate-200 bg-white">
+            <input type="file" id="import-character-file" accept=".json" class="hidden" onchange="importCharacterFile(event)" multiple>
+            <button onclick="document.getElementById('import-character-file').value=''; document.getElementById('import-character-file').click()" class="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-sm font-medium transition-colors flex justify-center items-center gap-2 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                Importa manualment
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL INICIAL (Gestor d'Arxius) -->
+    <div id="workspace-modal" class="fixed inset-0 bg-slate-900/80 z-[60] hidden items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-8 text-center flex flex-col items-center justify-center h-full" id="workspace-step-1">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold text-slate-800 mb-4">L'espai de treball</h2>
+                <p class="text-slate-600 mb-8 max-w-lg leading-relaxed">Selecciona la carpeta principal on es troben els teus projectes. El sistema escanejarà automàticament els continguts per llistar i carregar ràpidament els teus taulells.</p>
+                
+                <div id="workspace-new-btn-container" class="flex flex-col items-center w-full">
+                    <input type="file" id="workspace-folder-input" webkitdirectory directory multiple class="hidden">
+                    <button onclick="initWorkspace()" class="w-full max-w-xs bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 px-8 rounded-lg shadow-md transition-all flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
+                        Seleccionar carpeta
+                    </button>
+                </div>
+
+                <div id="workspace-saved-btn-container" class="hidden flex-col items-center gap-3 w-full">
+                    <p class="text-sm text-slate-500 font-medium">S'ha detectat una carpeta configurada prèviament:</p>
+                    <button onclick="restoreWorkspace()" class="w-full max-w-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 px-8 rounded-lg shadow-md transition-all flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" /></svg>
+                        Accedeix a la carpeta
+                    </button>
+                    <button onclick="initWorkspace()" class="text-sm text-blue-600 hover:underline mt-2">
+                        O tria una carpeta nova diferent
+                    </button>
+                </div>
+                
+                <div class="mt-6">
+                    <button onclick="closeWorkspaceModal()" class="text-slate-400 hover:text-slate-600 underline text-sm">
+                        Omet i continua amb el Mode Bàsic
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pas 2: Llistar projectes -->
+            <div class="p-8 hidden flex-col h-full" id="workspace-step-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-slate-800">Els teus projectes</h2>
+                    <div class="flex items-center gap-3">
+                        <span id="workspace-path-badge" class="px-3 py-1 bg-slate-100 text-slate-500 text-xs rounded-full font-medium"></span>
+                        <button onclick="initWorkspace()" class="text-xs text-blue-600 hover:text-blue-800 underline font-medium">Canvia</button>
+                    </div>
+                </div>
+                
+                <div id="project-list" class="flex-1 overflow-y-auto space-y-2 mb-6 border border-slate-200 rounded-lg p-3 bg-slate-50 min-h-[250px] max-h-[400px]">
+                    <div class="flex items-center justify-center h-full text-slate-400 text-sm italic">Cercant projectes...</div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200 items-center">
+                    <input type="text" id="ws-new-project-name" placeholder="Escriu el nom del projecte..." class="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                    <select id="ws-new-project-template" class="px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium bg-white text-slate-700">
+                        <option value="hero">El Viatge de l'Heroi</option>
+                        <option value="3acts">Estructura en 3 Actes</option>
+                        <option value="snyder">15 Story Beats (B. Snyder)</option>
+                        <option value="buit">En blanc</option>
+                    </select>
+                    <button onclick="createNewProjectFromWorkspace()" class="bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 px-6 rounded-lg transition-all whitespace-nowrap shadow-sm">
+                        Crea
+                    </button>
+                </div>
+                <button onclick="closeWorkspaceModal()" class="mt-4 text-center text-slate-400 hover:text-slate-600 underline text-sm w-full">
+                    Tanca i explora el taulell
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: NOU PROJECTE -->
+    <div id="new-project-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-lg font-semibold text-slate-800">Crea un nou projecte</h3>
+                <button onclick="closeNewProjectModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Títol de la història</label>
+                    <input type="text" id="modal-new-project-name" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: La gran odissea">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Plantilla d'estructura</label>
+                    <select id="modal-new-project-template" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="hero">El Viatge de l'Heroi</option>
+                        <option value="3acts">Estructura en 3 Actes</option>
+                        <option value="snyder">15 Story Beats (B. Snyder)</option>
+                        <option value="buit" selected>En blanc</option>
+                    </select>
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                <button onclick="closeNewProjectModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-100 transition font-medium text-sm">Cancel·la</button>
+                <button onclick="confirmNewProject()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 transition font-medium text-sm">Crea el projecte</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NOM DE FITXER INVÀLID -->
+    <div id="invalid-title-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[80] backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all p-6 text-center">
+            <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Títol invàlid</h3>
+            <p class="text-slate-600 mb-6">Per poder desar el projecte, el títol ha de començar obligatòriament pel prefix "<strong>ST_</strong>". Si us plau, modifiqueu-lo abans de continuar.</p>
+            <div class="flex justify-center">
+                <button onclick="closeInvalidTitleModal()" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-md transition font-medium">Entesos</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Edició/Creació d'Escena REFET AMB EL NOU DISSENY -->
+    <div id="scene-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+            
+            <!-- Àrea de previsualització de la nota (part superior) -->
+            <div id="modal-note-preview" class="p-6 transition-colors duration-200 relative bg-post-yellow min-h-[250px] shadow-inner flex-shrink-0 flex flex-col">
+                <div class="flex items-start gap-2 w-full mb-2">
+                    <div id="preview-icon" class="text-3xl empty:hidden"></div>
+                    <input type="text" id="scene-title" class="w-full bg-transparent border-none focus:ring-0 text-xl font-bold placeholder-black/40 text-slate-800 p-0 outline-none" placeholder="Títol de la nota">
+                </div>
+                
+                <!-- Nova àrea per a la Imatge central (aspect ratio flexible) -->
+                <div id="scene-image-wrapper" class="hidden relative w-full flex justify-center my-2 group flex-shrink-0">
+                    <div class="relative inline-block max-w-full">
+                        <img id="scene-preview-img" src="" class="max-w-full max-h-64 h-auto w-auto rounded-md border border-black/10 shadow-sm bg-white/50 object-contain">
+                        <button type="button" onclick="removeSceneImage()" class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-md" title="Eliminar la imatge">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <textarea id="scene-content" class="w-full flex-grow bg-transparent border-none focus:ring-0 font-handwriting text-lg text-slate-800 resize-none placeholder-black/40 p-0 outline-none" placeholder="Escriu aquí..."></textarea>
+            </div>
+
+            <!-- Controls d'edició (part inferior) -->
+            <div class="p-5 space-y-5 bg-slate-50 flex-grow overflow-y-auto border-t border-slate-200">
+                <input type="hidden" id="scene-id">
+                <input type="hidden" id="scene-chapter-id">
+                <input type="hidden" id="scene-image-url">
+                <input type="hidden" id="scene-x">
+                <input type="hidden" id="scene-y">
+                <input type="hidden" id="scene-width">
+                <input type="hidden" id="scene-height">
+
+                <!-- Fila 1: Etiqueta -->
+                <div class="flex items-center gap-3">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Etiqueta:</label>
+                    <input type="text" id="scene-tag" class="flex-1 px-3 py-1.5 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white" placeholder="Ex: revisió, idea, tasca...">
+                </div>
+
+                <!-- Fila 2: Font i Colors -->
+                <div class="flex items-center gap-3">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Font:</label>
+                    
+                    <!-- Mides -->
+                    <div class="flex items-end gap-1 border-r border-slate-300 pr-3 mr-1">
+                        <button type="button" class="btn-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded text-slate-700 transition" data-size="text-sm"><span class="text-xs">A</span></button>
+                        <button type="button" class="btn-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded text-slate-700 transition" data-size="text-base"><span class="text-sm">A</span></button>
+                        <button type="button" class="btn-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded font-bold ring-2 ring-blue-400 text-slate-800 transition" data-size="text-lg"><span class="text-base">A</span></button>
+                        <button type="button" class="btn-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded text-slate-700 transition" data-size="text-xl"><span class="text-lg">A</span></button>
+                        <button type="button" class="btn-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded text-slate-700 transition" data-size="text-2xl"><span class="text-xl">A</span></button>
+                    </div>
+                    <input type="hidden" id="scene-font-size" value="text-lg">
+
+                    <!-- Colors de text -->
+                    <div class="flex flex-wrap gap-1">
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-black ring-2 ring-blue-400 ring-offset-1" data-color="text-slate-800"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-red-600 hover:scale-110 transition-transform" data-color="text-red-600"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-pink-600 hover:scale-110 transition-transform" data-color="text-pink-600"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-yellow-500 hover:scale-110 transition-transform" data-color="text-yellow-500"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-green-600 hover:scale-110 transition-transform" data-color="text-green-600"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-blue-600 hover:scale-110 transition-transform" data-color="text-blue-600"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-indigo-600 hover:scale-110 transition-transform" data-color="text-indigo-600"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-blue-900 hover:scale-110 transition-transform" data-color="text-blue-900"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-rose-800 hover:scale-110 transition-transform" data-color="text-rose-800"></button>
+                        <button type="button" class="btn-tcolor w-5 h-5 rounded-sm bg-white border border-slate-300 hover:scale-110 transition-transform" data-color="text-white"></button>
+                    </div>
+                    <input type="hidden" id="scene-text-color" value="text-slate-800">
+                </div>
+
+                <!-- Fila 3: Icona -->
+                <div class="flex items-center gap-3 relative">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Icona:</label>
+                    <button type="button" id="btn-icon-select" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 flex items-center gap-2 text-sm shadow-sm transition">
+                        <span id="current-icon-display">Cap</span>
+                        <span class="text-[10px] opacity-50 ml-1">▼</span>
+                    </button>
+                    <input type="hidden" id="scene-icon" value="">
+                    
+                    <!-- Emoji Picker (es genera via JS) -->
+                    <div id="emoji-picker-scene" class="emoji-picker-container hidden absolute top-full left-28 mt-1 w-[280px] bg-white border border-slate-300 shadow-xl rounded-lg z-50 p-2 grid grid-cols-8 gap-1 text-2xl max-h-48 overflow-y-auto">
+                    </div>
+                </div>
+
+                <!-- Fila 4: Color Fons Targeta -->
+                <div class="flex items-center gap-3">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Color de fons:</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-red border border-black/10 hover:scale-110 transition-transform" data-color="post-red"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-pink border border-black/10 hover:scale-110 transition-transform" data-color="post-pink"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-orange border border-black/10 hover:scale-110 transition-transform" data-color="post-orange"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-yellow border-2 border-slate-800 hover:scale-110 transition-transform" data-color="post-yellow"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-lime border border-black/10 hover:scale-110 transition-transform" data-color="post-lime"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-green border border-black/10 hover:scale-110 transition-transform" data-color="post-green"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-cyan border border-black/10 hover:scale-110 transition-transform" data-color="post-cyan"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-blue border border-black/10 hover:scale-110 transition-transform" data-color="post-blue"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-purple border border-black/10 hover:scale-110 transition-transform" data-color="post-purple"></button>
+                        <button type="button" class="btn-bgcolor w-6 h-6 rounded bg-post-gray border border-black/10 hover:scale-110 transition-transform" data-color="post-gray"></button>
+                    </div>
+                    <input type="hidden" id="scene-color" value="post-yellow">
+                </div>
+                
+                <!-- Fila 5: Ubicació (Només visible si editem) -->
+                <div id="move-chapter-container" class="flex items-center gap-3 hidden">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Ubicació:</label>
+                    <select id="scene-move-chapter" class="flex-1 px-3 py-1.5 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white shadow-sm">
+                    </select>
+                </div>
+            </div>
+
+            <!-- Botonera Modal -->
+            <div class="px-6 py-4 bg-slate-100 border-t border-slate-200 flex justify-between flex-shrink-0">
+                <button id="btn-delete-scene" onclick="deleteScene()" class="text-red-600 hover:text-red-800 font-medium text-sm px-3 py-2 rounded-md hover:bg-red-50 transition hidden">
+                    Esborra nota
+                </button>
+                <div class="flex gap-2 ml-auto">
+                    <button onclick="closeSceneModal()" class="px-4 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 transition font-medium text-sm shadow-sm">
+                        Cancel·la
+                    </button>
+                    <button onclick="saveScene()" class="px-5 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition font-medium text-sm shadow-sm">
+                        Desar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓ ELIMINAR NOTA -->
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[70] backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all p-6 text-center">
+            <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Eliminar nota</h3>
+            <p class="text-slate-600 mb-6">Aquesta acció no es pot desfer. Voleu continuar?</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeDeleteConfirmModal()" class="px-5 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-100 transition font-medium">Cancel·la</button>
+                <button onclick="confirmDeleteScene()" class="px-5 py-2 bg-red-600 text-white rounded-md hover:bg-red-500 transition font-medium">Elimina</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Edició/Creació de Capítol (Carpeta) -->
+    <div id="chapter-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+            
+            <!-- Preview Area -->
+            <div id="modal-chapter-preview" class="p-6 transition-colors duration-200 relative bg-slate-100 shadow-inner flex-shrink-0 flex flex-col items-start gap-2">
+                <div class="flex items-center gap-3 w-full">
+                    <span id="chapter-preview-icon" class="text-4xl leading-none">📁</span>
+                    <input type="text" id="chapter-title" class="w-full bg-transparent border-none focus:ring-0 text-2xl font-bold placeholder-black/40 text-slate-800 p-0 outline-none" placeholder="Nom de la carpeta">
+                </div>
+                <div id="chapter-preview-tag" class="hidden text-xs font-medium px-2 py-0.5 bg-black/10 rounded text-slate-800 border border-black/5 mt-1 ml-12"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="p-5 space-y-5 bg-slate-50 flex-grow overflow-y-auto border-t border-slate-200">
+                <input type="hidden" id="chapter-id">
+                <input type="hidden" id="chapter-width">
+                <input type="hidden" id="chapter-height">
+
+                <!-- Fila 1: Etiqueta -->
+                <div class="flex items-center gap-3">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Etiqueta:</label>
+                    <input type="text" id="chapter-tag" oninput="updateChapterPreviewTag()" class="flex-1 px-3 py-1.5 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white" placeholder="Ex: Acte, Capítol, Extres...">
+                </div>
+
+                <!-- Fila 2: Font i Colors -->
+                <div class="flex items-center gap-3">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Font:</label>
+                    
+                    <!-- Mides -->
+                    <div class="flex items-end gap-1 border-r border-slate-300 pr-3 mr-1">
+                        <button type="button" class="btn-chapter-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded text-slate-700 transition" data-size="text-sm"><span class="text-xs">A</span></button>
+                        <button type="button" class="btn-chapter-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded text-slate-700 transition" data-size="text-base"><span class="text-sm">A</span></button>
+                        <button type="button" class="btn-chapter-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded font-bold ring-2 ring-blue-400 text-slate-800 transition" data-size="text-lg"><span class="text-base">A</span></button>
+                        <button type="button" class="btn-chapter-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded text-slate-700 transition" data-size="text-xl"><span class="text-lg">A</span></button>
+                        <button type="button" class="btn-chapter-size w-7 h-7 flex items-center justify-center hover:bg-slate-200 rounded text-slate-700 transition" data-size="text-2xl"><span class="text-xl">A</span></button>
+                    </div>
+                    <input type="hidden" id="chapter-font-size" value="text-xl">
+
+                    <!-- Colors de text -->
+                    <div class="flex flex-wrap gap-1">
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-black ring-2 ring-blue-400 ring-offset-1" data-color="text-slate-800"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-red-600 hover:scale-110 transition-transform" data-color="text-red-600"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-pink-600 hover:scale-110 transition-transform" data-color="text-pink-600"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-yellow-500 hover:scale-110 transition-transform" data-color="text-yellow-500"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-green-600 hover:scale-110 transition-transform" data-color="text-green-600"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-blue-600 hover:scale-110 transition-transform" data-color="text-blue-600"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-indigo-600 hover:scale-110 transition-transform" data-color="text-indigo-600"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-blue-900 hover:scale-110 transition-transform" data-color="text-blue-900"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-rose-800 hover:scale-110 transition-transform" data-color="text-rose-800"></button>
+                        <button type="button" class="btn-chapter-tcolor w-5 h-5 rounded-sm bg-white border border-slate-300 hover:scale-110 transition-transform" data-color="text-white"></button>
+                    </div>
+                    <input type="hidden" id="chapter-text-color" value="text-slate-800">
+                </div>
+
+                <!-- Fila 3: Icona -->
+                <div class="flex items-center gap-3 relative">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Icona:</label>
+                    <button type="button" id="btn-chapter-icon-select" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 flex items-center gap-2 text-sm shadow-sm transition">
+                        <span id="current-chapter-icon-display">Cap</span>
+                        <span class="text-[10px] opacity-50 ml-1">▼</span>
+                    </button>
+                    <input type="hidden" id="chapter-icon" value="">
+                    
+                    <!-- Emoji Picker Chapter-->
+                    <div id="emoji-picker-chapter" class="emoji-picker-container hidden absolute top-full left-28 mt-1 w-[280px] bg-white border border-slate-300 shadow-xl rounded-lg z-50 p-2 grid grid-cols-8 gap-1 text-2xl max-h-48 overflow-y-auto">
+                    </div>
+                </div>
+
+                <!-- Fila 4: Color Fons Targeta -->
+                <div class="flex items-center gap-3">
+                    <label class="font-medium text-slate-700 w-24 flex-shrink-0 text-right text-sm">Color de fons:</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-slate-100 border-2 border-slate-800 hover:scale-110 transition-transform" data-color="slate-100"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-red border border-black/10 hover:scale-110 transition-transform" data-color="post-red"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-pink border border-black/10 hover:scale-110 transition-transform" data-color="post-pink"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-orange border border-black/10 hover:scale-110 transition-transform" data-color="post-orange"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-yellow border border-black/10 hover:scale-110 transition-transform" data-color="post-yellow"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-lime border border-black/10 hover:scale-110 transition-transform" data-color="post-lime"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-green border border-black/10 hover:scale-110 transition-transform" data-color="post-green"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-cyan border border-black/10 hover:scale-110 transition-transform" data-color="post-cyan"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-blue border border-black/10 hover:scale-110 transition-transform" data-color="post-blue"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-purple border border-black/10 hover:scale-110 transition-transform" data-color="post-purple"></button>
+                        <button type="button" class="btn-chapter-bgcolor w-6 h-6 rounded bg-post-gray border border-black/10 hover:scale-110 transition-transform" data-color="post-gray"></button>
+                    </div>
+                    <input type="hidden" id="chapter-color" value="slate-100">
+                </div>
+            </div>
+
+            <!-- Botonera -->
+            <div class="px-6 py-4 bg-slate-100 border-t border-slate-200 flex justify-between flex-shrink-0">
+                <button id="btn-delete-chapter" onclick="deleteChapter()" class="text-red-600 hover:text-red-800 font-medium text-sm px-3 py-2 rounded-md hover:bg-red-50 transition hidden">
+                    Esborra carpeta
+                </button>
+                <div class="flex gap-2 ml-auto">
+                    <button onclick="closeChapterModal()" class="px-4 py-2 border border-slate-300 text-slate-700 bg-white rounded-md hover:bg-slate-50 transition font-medium text-sm shadow-sm">
+                        Cancel·la
+                    </button>
+                    <button onclick="saveChapter()" class="px-5 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition font-medium text-sm shadow-sm">
+                        Desar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓ ELIMINAR CARPETA -->
+    <div id="delete-chapter-confirm-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-[70] backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all p-6 text-center">
+            <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Eliminar carpeta</h3>
+            <p id="delete-chapter-text" class="text-slate-600 mb-6">Voleu eliminar aquesta carpeta de manera permanent?</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeDeleteChapterConfirmModal()" class="px-5 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-100 transition font-medium">Cancel·la</button>
+                <button onclick="confirmDeleteChapter()" class="px-5 py-2 bg-red-600 text-white rounded-md hover:bg-red-500 transition font-medium">Elimina</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENIDOR MISSATGES TOAST (ALERTES) -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        let fallbackParsedFiles = []; 
+        let manualCharacters = []; 
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let dragGhost = null;
+        let uploadTarget = { chapterId: null, sceneId: null };
+
+        const EMOJIS = [
+            '😀','😃','😜','🥺','😭','😠','💧','😎','😱','🐶','🐱','🐰','🐭','🐴','🐷','🐔','🐳','🐟','🐸',
+            '☀️','☁️','☔','⛄','⚡','🚗','🚆','🚌','✈️','🚲','🍎','🍊','🍋','🍓','🍒','🍌','🍑','🍍',
+            '👍','👎','🦋','🍦','🍁','❄️','⚾','⚽','🏀','⛳','🏠','🏢','🎹','🎸','🎻','🎺','🥁','🍺','🍷','☕',
+            '✉️','💬','♠️','❤️','♦️','♣️','🚩','🏳️','🟩','🟨','⭐','✨','💡','💣','🎂','🎁','💋','💤','🎵','🌍',
+            '🍀','🌺','📷','📱','🕒','🖊️','🛒','🎞️','📎','❗','❓','💲','⬆️','↗️','➡️','↘️','⬇️','↙️','⬅️','↖️',
+            '🚫','✅','⭕','❌','🔺','➕','➖','✖️','➗','🟰','0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣'
+        ];
+
+        const DB_NAME = 'NarrativeBoardDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'settings';
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME);
+                    }
+                };
+            });
+        }
+
+        async function saveWorkspaceHandle(handle) {
+            const db = await initDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.put(handle, 'workspaceHandle');
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function loadWorkspaceHandle() {
+            const db = await initDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get('workspaceHandle');
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function verifyPermission(fileHandle) {
+            const options = { mode: 'readwrite' };
+            if ((await fileHandle.queryPermission(options)) === 'granted') {
+                return true;
+            }
+            if ((await fileHandle.requestPermission(options)) === 'granted') {
+                return true;
+            }
+            return false;
+        }
+
+        let workspaceHandle = null;
+        let savedWorkspaceHandle = null; 
+        let currentProjectFolderHandle = null;
+        let currentFallbackFolderPath = null;
+        let currentFileHandle = null;
+        
+        let loadedCharacters = []; 
+        let draggedCharacterData = null; 
+
+        // --- CÀLCUL ESPAI LLIURE (Evitar superposicions) ---
+        function getFreePosition(isChapter) {
+            const center = getViewCenter();
+            let posX = center.x;
+            let posY = center.y;
+            
+            const myW = isChapter ? 350 : 256;
+            const myH = isChapter ? 500 : 150;
+            
+            let hasOverlap = true;
+            let attempts = 0;
+            
+            while(hasOverlap && attempts < 50) {
+                hasOverlap = false;
+                
+                for (const ch of state.chapters) {
+                    const chX = ch.x || 50;
+                    const chY = ch.y || 50;
+                    const chW = ch.width || 320;
+                    const chH = ch.height || 500;
+                    
+                    if (posX < chX + chW + 30 && posX + myW + 30 > chX &&
+                        posY < chY + chH + 30 && posY + myH + 30 > chY) {
+                        hasOverlap = true;
+                        posX = chX + chW + 40; 
+                    }
+                }
+                
+                if (state.freeScenes) {
+                    for (const sc of state.freeScenes) {
+                        const scX = sc.x || 50;
+                        const scY = sc.y || 150;
+                        const scW = sc.width || 256;
+                        const scH = sc.height || 150;
+                        
+                        if (posX < scX + scW + 30 && posX + myW + 30 > scX &&
+                            posY < scY + scH + 30 && posY + myH + 30 > scY) {
+                            hasOverlap = true;
+                            posX = scX + scW + 40;
+                        }
+                    }
+                }
+                attempts++;
+            }
+            
+            return { x: posX, y: Math.max(50, posY) };
+        }
+
+        // --- GESTIÓ D'ESTRUCTURES ---
+        function addStructure(selectElement) {
+            const templateId = selectElement.value;
+            if (!templateId) return;
+
+            const newTemplateData = getTemplateState("", templateId);
+            
+            let maxX = 0;
+            state.chapters.forEach(ch => {
+                if (ch.x + (ch.width || 320) > maxX) {
+                    maxX = ch.x + (ch.width || 320);
+                }
+            });
+            if (state.freeScenes) {
+                state.freeScenes.forEach(sc => {
+                    if (sc.x + (sc.width || 256) > maxX) {
+                        maxX = sc.x + (sc.width || 256);
+                    }
+                });
+            }
+            
+            const shiftX = maxX > 0 ? maxX + 50 : 0; 
+            const center = getViewCenter();
+            const startY = Math.max(50, center.y - 200);
+
+            newTemplateData.chapters.forEach(ch => {
+                ch.id = generateId();
+                ch.scenes.forEach(s => s.id = generateId());
+                
+                ch.x = ch.x + shiftX - 50; 
+                if(ch.x < 50) ch.x = 50; 
+                ch.y = startY;
+                
+                state.chapters.push(ch);
+            });
+
+            selectElement.value = ""; 
+            renderBoard();
+            showToast("S'ha afegit l'estructura narrativa al taulell.");
+        }
+
+        // --- GESTIÓ DE PROPP ---
+        const PROPP_FUNCTIONS = [
+            { id: 1, title: "1. Allunyament", content: "Una figura de la família s'allunya de l'entorn conegut per obligació o decisió." },
+            { id: 2, title: "2. Prohibició", content: "Recau una prohibició o advertència sobre qui protagonitza la història." },
+            { id: 3, title: "3. Transgressió", content: "Es transgredeix la prohibició o advertència imposada." },
+            { id: 4, title: "4. Interrogatori", content: "L'antagonista intenta obtenir informació sobre la seva víctima o l'entorn." },
+            { id: 5, title: "5. Informació", content: "Les forces oponents reben detalls decisius sobre la víctima." },
+            { id: 6, title: "6. Engany", content: "S'intenta enganyar la víctima per apoderar-se dels seus béns o la seva confiança." },
+            { id: 7, title: "7. Complicitat", content: "La víctima es deixa enganyar i ajuda sense voler la part oponent." },
+            { id: 8, title: "8. Mancança / Dany", content: "Les figures antagonistes causen un dany o fa falta una cosa vital." },
+            { id: 9, title: "9. Mediació", content: "Es fa saber la mancança i s'encarrega a qui protagonitza que ho solucioni." },
+            { id: 10, title: "10. Acceptació", content: "S'accepta la missió de forma voluntària o empesa per les circumstàncies." },
+            { id: 11, title: "11. Partida", content: "La figura heroica abandona la llar per emprendre el camí." },
+            { id: 12, title: "12. Prova", content: "Una figura donant posa a prova les capacitats o el cor de qui protagonitza." },
+            { id: 13, title: "13. Reacció", content: "Hi ha una reacció a la prova (pot ser d'èxit, compassió, o fracàs inicial)." },
+            { id: 14, title: "14. Regal", content: "Recepció d'un objecte màgic o eina clau per ajudar a resoldre el conflicte." },
+            { id: 15, title: "15. Viatge", content: "Desplaçament o transport cap a l'objectiu o l'entorn on habita l'antagonista." },
+            { id: 16, title: "16. Lluita", content: "Combat directe amb la principal força oponent." },
+            { id: 17, title: "17. Marca", content: "Qui protagonitza rep una marca física, ferida o senyal simbòlic." },
+            { id: 18, title: "18. Victòria", content: "La part antagonista és derrotada en l'enfrontament." },
+            { id: 19, title: "19. Reparació", content: "Es resol la mancança o es repara el dany inicial establert." },
+            { id: 20, title: "20. Retorn", content: "S'emprèn finalment el camí de tornada a l'origen." },
+            { id: 21, title: "21. Persecució", content: "La figura protagonista és perseguida o amenaçada durant el retorn." },
+            { id: 22, title: "22. Socors", content: "Altres figures auxilien i permeten escapar de la persecució." },
+            { id: 23, title: "23. Arribada d'incògnit", content: "Arribada a la llar sense mostrar la veritable identitat o èxit." },
+            { id: 24, title: "24. Pretensions enganyoses", content: "Una falsa figura heroica reclama per a si mateixa els mèrits de la missió." },
+            { id: 25, title: "25. Tasca difícil", content: "Es proposa una tasca extremadament complexa per demostrar la identitat." },
+            { id: 26, title: "26. Tasca complida", content: "La tasca es resol amb amb amb èxit demostrant la veritable vàlua." },
+            { id: 27, title: "27. Reconeixement", content: "Es reconeix de manera indiscutible a la veritable figura protagonista." },
+            { id: 28, title: "28. Descobriment", content: "Es desemmascara l'engany o la veritable naturalesa de la falsa heroïna." },
+            { id: 29, title: "29. Transfiguració", content: "S'assoleix una nova aparença, acceptació o estatus social renovat." },
+            { id: 30, title: "30. Càstig", content: "S'executa el càstig sobre la part antagonista o impostora." },
+            { id: 31, title: "31. Recompensa", content: "Recompensa final (noces, ascens o troballa del lloc adequat en el món)." }
+        ];
+
+        function populateProppFunctions() {
+            const select = document.getElementById('propp-select');
+            if (!select) return;
+            PROPP_FUNCTIONS.forEach(func => {
+                const opt = document.createElement('option');
+                opt.value = func.id;
+                opt.textContent = func.title;
+                select.appendChild(opt);
+            });
+        }
+
+        function addProppFunction(selectElement) {
+            const val = selectElement.value;
+            if (!val) return;
+
+            const funcData = PROPP_FUNCTIONS.find(f => f.id == val);
+            if (!funcData) return;
+
+            const pos = getFreePosition(false);
+
+            if (!state.freeScenes) state.freeScenes = [];
+            state.freeScenes.push({
+                id: generateId(),
+                title: funcData.title,
+                content: funcData.content,
+                color: 'post-purple',
+                fontSize: 'text-lg',
+                textColor: 'text-slate-800',
+                x: pos.x,
+                y: pos.y
+            });
+
+            selectElement.value = ""; 
+            renderBoard();
+            showToast("S'ha afegit la funció de Propp al taulell.");
+        }
+
+        // --- PLANTILLES D'ESTRUCTURA ---
+        function getTemplateState(title = "", template = "buit") {
+            let chapters = [];
+            let freeScenes = [];
+
+            if (template === "3acts") {
+                chapters = [
+                    { id: generateId(), title: 'Acte I: Plantejament', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: 'L\'ham', content: 'L\'esdeveniment inicial que capta l\'atenció o mostra la premissa.', color: 'post-yellow' }, { id: generateId(), title: 'Detonant', content: 'L\'incident incitador que trenca la normalitat i demana acció.', color: 'post-blue' }, { id: generateId(), title: 'Primer punt de gir', content: 'Es pren la decisió d\'emprendre el camí, creant un punt de no retorn.', color: 'post-green' } ] },
+                    { id: generateId(), title: 'Acte II: El Nus', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: 'Desenvolupament', content: 'Inici dels obstacles, proves i aprenentatges dins del nou món.', color: 'post-yellow' }, { id: generateId(), title: 'Punt mitjà', content: 'Una revelació o canvi de paradigma profund que fa passar a l\'acció totalment proactiva.', color: 'post-pink' }, { id: generateId(), title: 'Segon punt de gir', content: 'S\'arriba al moment aparentment més baix o de crisi que obliga a replantejar-ho tot.', color: 'post-purple' } ] },
+                    { id: generateId(), title: 'Acte III: Desenllaç', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: 'Clímax', content: 'L\'enfrontament final i decisiu que dona resolució al conflicte principal.', color: 'post-blue' }, { id: generateId(), title: 'Resolució', content: 'Es mostra el nou estatus quo i el creixement aconseguit un cop acabada l\'aventura.', color: 'post-green' } ] }
+                ];
+            } else if (template === "snyder") {
+                chapters = [
+                    { id: generateId(), title: 'Acte I (Plantejament)', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: '1. Imatge d\'obertura', content: 'Mostra el "món abans" i l\'estat de qui protagonitza (mancances).', color: 'post-yellow' }, { id: generateId(), title: '2. Declaració del tema', content: 'Una conversa on algú resumeix el tema o la lliçó central de la història.', color: 'post-blue' }, { id: generateId(), title: '3. Plantejament', content: 'Presentació de l\'entorn, el funcionament del món i la necessitat d\'un canvi.', color: 'post-pink' }, { id: generateId(), title: '4. Detonant', content: 'El catalitzador radical que trenca completament l\'estatus quo.', color: 'post-purple' }, { id: generateId(), title: '5. El debat', content: 'Apareixen dubtes personals sobre si acceptar o no la crida i el risc.', color: 'post-yellow' } ] },
+                    { id: generateId(), title: 'Acte II (L\'Aventura)', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: '6. Transició al segon acte', content: 'L\'entrada o decisió d\'entrar plenament en el nou món desconegut.', color: 'post-green' }, { id: generateId(), title: '7. La trama B', content: 'S\'introdueix la trama secundària on sovint es debat el tema intern o emocional.', color: 'post-blue' }, { id: generateId(), title: '8. Jocs i rialles', content: 'S\'explora la premissa del món (les proves inicials, el nou context d\'aprenentatge).', color: 'post-pink' }, { id: generateId(), title: '9. El punt mitjà', content: 'Falsa victòria o falsa derrota absoluta. Totes les apostes s\'eleven significativament.', color: 'post-purple' }, { id: generateId(), title: '10. Les forces oponents s\'acosten', content: 'La pressió augmenta notablement tant per amenaces externes com tensions internes.', color: 'post-yellow' } ] },
+                    { id: generateId(), title: 'Acte III (Resolució)', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: '11. Tot està perdut', content: 'Sembla una desfeta sense retorn. S\'experimenta la pèrdua d\'alguna cosa vital o d\'algú.', color: 'post-blue' }, { id: generateId(), title: '12. La nit fosca de l\'ànima', content: 'S\'atura tot per un moment profund d\'introspecció abans de comprendre la lliçó essencial.', color: 'post-purple' }, { id: generateId(), title: '13. Transició al tercer acte', content: 'S\'aplica la lliçó apresa (sovint gràcies a la trama B) per descobrir la veritable solució.', color: 'post-green' }, { id: generateId(), title: '14. El final', content: 'S\'executa la decisió. La trama principal i la secundària es resolen conjuntament.', color: 'post-pink' }, { id: generateId(), title: '15. Imatge final', content: 'L\'absolutament oposat a la imatge d\'obertura, demostrant el creixement evident.', color: 'post-yellow' } ] }
+                ];
+            } else if (template === "hero") {
+                chapters = [
+                    { id: generateId(), title: 'Acte I: La Partida', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: '1. El món ordinari', content: 'Presentació de la quotidianitat i estatus quo abans que l\'aventura comenci.', color: 'post-yellow' }, { id: generateId(), title: '2. La crida a l\'aventura', content: 'Un missatge trenca la normalitat, presentant un repte ineludible.', color: 'post-blue' }, { id: generateId(), title: '3. El rebuig de la crida', content: 'Sorgeixen dubtes. Es refusa inicialment l\'oferta a causa dels riscos.', color: 'post-pink' }, { id: generateId(), title: '4. La trobada amb la figura mentora', content: 'Apareix la guia que atorga eines o la confiança necessària per emprendre el camí.', color: 'post-purple' }, { id: generateId(), title: '5. Creuament del primer llindar', content: 'Es pren el compromís ferm d\'endinsar-se en l\'esfera desconeguda.', color: 'post-green' } ] },
+                    { id: generateId(), title: 'Acte II: La Iniciació', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: '6. Proves i aliances', content: 'S\'aprenen les regles i es forgen vincles mentre es coneix a la part oponent.', color: 'post-yellow' }, { id: generateId(), title: '7. Aproximació al centre', content: 'Acostament al lloc de major perill d\'aquest nou món on hi ha el gran repte.', color: 'post-blue' }, { id: generateId(), title: '8. L\'Odissea', content: 'L\'enfrontament directe amb la por més profunda; possible transformació simbòlica.', color: 'post-pink' }, { id: generateId(), title: '9. La recompensa', content: 'Després de sobreviure, s\'aconsegueix l\'objectiu clau per seguir.', color: 'post-green' } ] },
+                    { id: generateId(), title: 'Acte III: El Retorn', color: 'slate-100', fontSize: 'text-xl', textColor: 'text-slate-800', scenes: [ { id: generateId(), title: '10. El camí de tornada', content: 'L\'impuls per tornar sovint empès per les restes de les forces venjatives.', color: 'post-purple' }, { id: generateId(), title: '11. La resurrecció', content: 'L\'última prova severa on es demostra que les lliçons s\'han assumit totalment.', color: 'post-yellow' }, { id: generateId(), title: '12. El retorn amb l\'elixir', content: 'Arribada amb un canvi permanent. L\'aprenentatge transforma la realitat prèvia.', color: 'post-blue' } ] }
+                ];
+            } else {
+                chapters = [];
+            }
+            
+            chapters.forEach((ch, chIdx) => {
+                ch.width = 320;
+                ch.height = 600;
+                ch.x = 50 + chIdx * 350;
+                ch.y = 50;
+                ch.scenes.forEach((sc, scIdx) => {
+                    sc.x = 20;
+                    sc.y = 20 + scIdx * 140;
+                });
+            });
+
+            return {
+                storyTitle: title,
+                chapters: chapters,
+                freeScenes: freeScenes
+            };
+        }
+
+        let state = getTemplateState("", "buit");
+
+        // --- VARIABLES PAN & ZOOM ---
+        let boardScale = 1;
+        let boardX = 0;
+        let boardY = 0;
+        let isPanning = false;
+        let startPanX = 0;
+        let startPanY = 0;
+
+        const boardContainer = document.getElementById('board-container');
+        const boardCanvas = document.getElementById('board-canvas');
+
+        // --- FUNCIONS AUXILIARS GENERALS ---
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-3 rounded shadow-lg text-white font-medium text-sm transition-all duration-300 transform translate-y-10 opacity-0 ${type === 'error' ? 'bg-red-600' : 'bg-slate-800'}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-10', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function getViewCenter() {
+            const rect = boardCanvas.getBoundingClientRect();
+            const centerX = (window.innerWidth / 2 - rect.left) / boardScale;
+            const centerY = (window.innerHeight / 2 - 100 - rect.top) / boardScale; 
+            return { x: Math.max(20, centerX), y: Math.max(20, centerY) };
+        }
+
+        function normalizeChar(data) {
+            return {
+                name: data.nom || data.name || 'Desconegut',
+                role: data.ocupacio || data.personatge || data.role || data.description || 'Intervenció de la figura.',
+                image: data.imatge || data.image || data.imageUrl || null
+            };
+        }
+
+        // --- GESTIÓ DE NOU PROJECTE ---
+        function openNewProjectModal() {
+            const modal = document.getElementById('new-project-modal');
+            document.getElementById('modal-new-project-name').value = '';
+            document.getElementById('modal-new-project-template').value = 'buit';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('modal-new-project-name').focus();
+        }
+
+        function closeNewProjectModal() {
+            const modal = document.getElementById('new-project-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function confirmNewProject() {
+            const input = document.getElementById('modal-new-project-name');
+            const templateSelect = document.getElementById('modal-new-project-template');
+            
+            let projectName = input.value.trim();
+            const templateId = templateSelect.value;
+            
+            if (!projectName) {
+                showToast("Cal escriure un nom pel projecte.", "error");
+                input.focus();
+                return;
+            }
+
+            if (workspaceHandle && window.self === window.top) {
+                try {
+                    const safeName = projectName.replace(/[/\\?%*:|"<>]/g, '-').trim();
+                    const prefix = safeName.startsWith('ST_') ? '' : 'ST_';
+                    const folderName = prefix + safeName;
+                    const fileName = prefix + safeName + '.json';
+
+                    currentProjectFolderHandle = await workspaceHandle.getDirectoryHandle(folderName, { create: true });
+                    currentFileHandle = await currentProjectFolderHandle.getFileHandle(fileName, { create: true });
+
+                    state = getTemplateState(projectName, templateId);
+                    await saveToDisk();
+                    showToast("Projecte creat i desat a l'espai de treball.");
+                } catch (error) {
+                    console.error("Error creant el projecte:", error);
+                    showToast("No s'ha pogut crear la carpeta del projecte. Mode Lectura activat.", "error");
+                    state = getTemplateState(projectName, templateId);
+                }
+            } else {
+                state = getTemplateState(projectName, templateId);
+                currentProjectFolderHandle = null;
+                currentFileHandle = null;
+                currentFallbackFolderPath = null;
+                showToast("Projecte creat en Mode Lectura. Es descarregarà en desar.");
+            }
+
+            closeNewProjectModal();
+            updateUIForActiveProject();
+        }
+
+        // --- GESTIÓ DE PERSONATGES I CÀRREGA AUTOMÀTICA ---
+        async function scanForCharacters(dirHandle) {
+            let chars = [];
+            try {
+                for await (const entry of dirHandle.values()) {
+                    if (entry.kind === 'file' && entry.name.toLowerCase().startsWith('ch_') && entry.name.toLowerCase().endsWith('.json')) {
+                        try {
+                            const file = await entry.getFile();
+                            const text = await file.text();
+                            const data = JSON.parse(text);
+                            if (data.nom || data.name || data.ocupacio || data.personatge) {
+                                chars.push(normalizeChar(data));
+                            }
+                        } catch (e) {}
+                    } else if (entry.kind === 'directory' && !entry.name.startsWith('.')) {
+                        try {
+                            const subChars = await scanForCharacters(entry);
+                            chars = chars.concat(subChars);
+                        } catch (e) {}
+                    }
+                }
+            } catch (e) {}
+            return chars;
+        }
+
+        function scanFallbackCharacters(targetFolderPath) {
+            let chars = [];
+            const charFiles = fallbackParsedFiles.filter(f => {
+                if (!f.isChar) return false;
+                if (targetFolderPath) {
+                    return f.path.startsWith(targetFolderPath);
+                }
+                return false; 
+            });
+            
+            for (const file of charFiles) {
+                const data = file.data;
+                if (data.nom || data.name || data.ocupacio || data.personatge) {
+                    chars.push(normalizeChar(data));
+                }
+            }
+            return chars;
+        }
+
+        function closeCharactersSidebar() {
+            const sidebar = document.getElementById('characters-sidebar');
+            sidebar.classList.add('translate-x-full');
+            loadedCharacters = [];
+            const list = document.getElementById('characters-list');
+            if (list) list.innerHTML = '';
+        }
+
+        async function toggleCharactersSidebar() {
+            const sidebar = document.getElementById('characters-sidebar');
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                
+                const list = document.getElementById('characters-list');
+                list.innerHTML = '<div class="text-slate-400 text-sm italic text-center p-4 mt-10">Cercant personatges a la carpeta del projecte...</div>';
+                
+                let scannedCharacters = [];
+
+                if (currentProjectFolderHandle) {
+                    scannedCharacters = await scanForCharacters(currentProjectFolderHandle);
+                } else if (workspaceHandle) {
+                    scannedCharacters = await scanForCharacters(workspaceHandle);
+                } else if (fallbackParsedFiles && fallbackParsedFiles.length > 0) {
+                    scannedCharacters = scanFallbackCharacters(currentFallbackFolderPath);
+                } 
+
+                const allChars = [...manualCharacters, ...scannedCharacters];
+                const seen = new Set();
+                loadedCharacters = [];
+                
+                allChars.forEach(c => {
+                    const str = JSON.stringify(c);
+                    if (!seen.has(str)) {
+                        seen.add(str);
+                        loadedCharacters.push(c);
+                    }
+                });
+
+                renderCharactersSidebar();
+            } else {
+                closeCharactersSidebar();
+            }
+        }
+
+        function importCharacterFile(event) {
+            const files = event.target.files;
+            if (!files) return;
+
+            let validFilesCount = 0;
+
+            Array.from(files).forEach(file => {
+                if (!file.name.toLowerCase().startsWith('ch_') || !file.name.toLowerCase().endsWith('.json')) {
+                    showToast(`El fitxer ${file.name} ha estat ignorat. Sols s'accepten els que comencen per "ch_"`, 'error');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const charData = normalizeChar(JSON.parse(e.target.result));
+                        
+                        const strData = JSON.stringify(charData);
+                        const isDuplicate = manualCharacters.some(c => JSON.stringify(c) === strData);
+                        
+                        if (!isDuplicate) {
+                            manualCharacters.push(charData);
+                            
+                            const isLoadedDuplicate = loadedCharacters.some(c => JSON.stringify(c) === strData);
+                            if (!isLoadedDuplicate) {
+                                loadedCharacters.push(charData);
+                            }
+                        }
+                        
+                        renderCharactersSidebar();
+                        showToast(`Identitat "${charData.name}" carregada amb èxit.`);
+                    } catch(err) {
+                        showToast('El fitxer del personatge té un format invàlid.', 'error');
+                    }
+                };
+                reader.readAsText(file);
+                validFilesCount++;
+            });
+            
+            if (validFilesCount === 0 && files.length > 0) {
+                 showToast("Cap dels fitxers seleccionats era vàlid.", "error");
+            }
+            event.target.value = '';
+        }
+
+        function renderCharactersSidebar() {
+            const list = document.getElementById('characters-list');
+            list.innerHTML = '';
+            
+            if (loadedCharacters.length === 0) {
+                list.innerHTML = '<div class="text-slate-400 text-sm italic text-center p-4 mt-10">Sense identitats carregades.<br><br>Assegura\'t que els teus fitxers JSON comencen per "ch_" dins la carpeta del projecte, o importa\'ls manualment a sota.</div>';
+                return;
+            }
+
+            loadedCharacters.forEach((charData) => {
+                const div = document.createElement('div');
+                div.className = "bg-white border border-slate-200 rounded shadow-sm hover:shadow transition-shadow cursor-grab active:cursor-grabbing overflow-hidden flex flex-col";
+                div.draggable = true;
+                
+                let imgHTML = '';
+                if (charData.image) {
+                    imgHTML = `<img src="${charData.image}" class="w-full aspect-square object-cover border-b border-slate-100" draggable="false">`;
+                } else {
+                    imgHTML = `<div class="w-full aspect-square bg-slate-100 border-b border-slate-100 flex items-center justify-center text-slate-400"><svg class="w-8 h-8 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg></div>`;
+                }
+
+                div.innerHTML = `
+                    ${imgHTML}
+                    <div class="p-3 flex-grow flex flex-col justify-center pointer-events-none">
+                        <div class="font-semibold text-slate-800 text-sm truncate" title="${escapeHTML(charData.name)}">${escapeHTML(charData.name)}</div>
+                        <div class="text-xs text-slate-500 mt-1 truncate" title="${escapeHTML(charData.role)}">${escapeHTML(charData.role)}</div>
+                    </div>
+                `;
+
+                div.onclick = () => addCharacterToBoard(charData);
+                div.addEventListener('dragstart', (e) => {
+                    cleanupDrag(); 
+                    document.body.classList.add('is-dragging');
+                    draggedType = 'character-from-sidebar';
+                    draggedCharacterData = JSON.stringify(charData);
+                    
+                    const rect = div.getBoundingClientRect();
+                    dragOffsetX = e.clientX - rect.left; 
+                    dragOffsetY = e.clientY - rect.top;
+                    
+                    e.dataTransfer.effectAllowed = 'copy';
+                    e.dataTransfer.setData('text/plain', draggedCharacterData);
+                    
+                    const emptyImg = new Image();
+                    emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                    e.dataTransfer.setDragImage(emptyImg, 0, 0);
+
+                    dragGhost = div.cloneNode(true);
+                    dragGhost.style.position = 'fixed';
+                    dragGhost.style.pointerEvents = 'none';
+                    dragGhost.style.zIndex = '9999';
+                    dragGhost.style.opacity = '0.9';
+                    dragGhost.style.transform = `scale(1)`; 
+                    dragGhost.style.transformOrigin = 'top left';
+                    dragGhost.style.left = rect.left + 'px';
+                    dragGhost.style.top = rect.top + 'px';
+                    dragGhost.style.width = rect.width + 'px';
+                    dragGhost.style.height = rect.height + 'px';
+                    document.body.appendChild(dragGhost);
+                });
+                div.addEventListener('dragend', () => cleanupDrag());
+
+                list.appendChild(div);
+            });
+        }
+
+        function addCharacterToBoard(charData) {
+            const pos = getFreePosition(false);
+            if (!state.freeScenes) state.freeScenes = [];
+            
+            state.freeScenes.push({
+                id: generateId(),
+                title: charData.name,
+                content: charData.role,
+                imageUrl: charData.image,
+                color: 'post-pink',
+                fontSize: 'text-lg',
+                textColor: 'text-slate-800',
+                x: pos.x,
+                y: pos.y
+            });
+            renderBoard();
+            showToast(`S'ha afegit a ${charData.name} al taulell.`);
+        }
+
+        // --- GESTIÓ DE L'ESPAI DE TREBALL (File System Access API per Projectes) ---
+        function openWorkspaceModal() {
+            const modal = document.getElementById('workspace-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            if (workspaceHandle || (fallbackParsedFiles && fallbackParsedFiles.length > 0)) {
+                document.getElementById('workspace-step-1').classList.add('hidden');
+                document.getElementById('workspace-step-2').classList.remove('hidden');
+                document.getElementById('workspace-step-2').classList.add('flex');
+                
+                if (workspaceHandle) {
+                    listProjects();
+                } else {
+                    listProjectsFallback();
+                }
+            } else {
+                document.getElementById('workspace-step-1').classList.remove('hidden');
+                document.getElementById('workspace-step-2').classList.add('hidden');
+                document.getElementById('workspace-step-2').classList.remove('flex');
+                
+                if (savedWorkspaceHandle) {
+                    document.getElementById('workspace-new-btn-container').classList.add('hidden');
+                    document.getElementById('workspace-saved-btn-container').classList.remove('hidden');
+                    document.getElementById('workspace-saved-btn-container').classList.add('flex');
+                } else {
+                    document.getElementById('workspace-new-btn-container').classList.remove('hidden');
+                    document.getElementById('workspace-saved-btn-container').classList.add('hidden');
+                    document.getElementById('workspace-saved-btn-container').classList.remove('flex');
+                }
+            }
+        }
+
+        function closeWorkspaceModal() {
+            const modal = document.getElementById('workspace-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function restoreWorkspace() {
+            if (!savedWorkspaceHandle) return;
+            
+            let inIframe = false;
+            try { inIframe = window.self !== window.top; } catch(e) { inIframe = true; }
+            
+            if (inIframe) {
+                showToast("L'accés automàtic està bloquejat a la vista prèvia. Tria la carpeta manualment.", "info");
+                document.getElementById('workspace-new-btn-container').classList.remove('hidden');
+                document.getElementById('workspace-saved-btn-container').classList.add('hidden');
+                document.getElementById('workspace-saved-btn-container').classList.remove('flex');
+                return;
+            }
+
+            try {
+                const hasPermission = await verifyPermission(savedWorkspaceHandle);
+                if (hasPermission) {
+                    workspaceHandle = savedWorkspaceHandle;
+                    document.getElementById('workspace-path-badge').textContent = `Carpeta: ${workspaceHandle.name}`;
+                    
+                    document.getElementById('workspace-step-1').classList.add('hidden');
+                    document.getElementById('workspace-step-2').classList.remove('hidden');
+                    document.getElementById('workspace-step-2').classList.add('flex');
+                    
+                    await listProjects();
+                } else {
+                    showToast("No s'ha obtingut permís. Tria la carpeta manualment.", "error");
+                }
+            } catch (error) {
+                console.error("Error restaurant la carpeta:", error);
+                showToast("No s'ha pogut accedir a la carpeta desada. Tria'n una altra.", "error");
+                document.getElementById('workspace-new-btn-container').classList.remove('hidden');
+                document.getElementById('workspace-saved-btn-container').classList.add('hidden');
+                document.getElementById('workspace-saved-btn-container').classList.remove('flex');
+            }
+        }
+
+        async function initWorkspace() {
+            let inIframe = false;
+            try { inIframe = window.self !== window.top; } catch(e) { inIframe = true; }
+
+            if (window.showDirectoryPicker && !inIframe) {
+                try {
+                    workspaceHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    savedWorkspaceHandle = workspaceHandle;
+                    fallbackParsedFiles = [];
+                    
+                    await saveWorkspaceHandle(workspaceHandle);
+
+                    document.getElementById('workspace-path-badge').textContent = `Carpeta: ${workspaceHandle.name}`;
+                    
+                    document.getElementById('workspace-step-1').classList.add('hidden');
+                    document.getElementById('workspace-step-2').classList.remove('hidden');
+                    document.getElementById('workspace-step-2').classList.add('flex');
+                    
+                    await listProjects();
+                    return; 
+                } catch (error) {
+                    if (error.name === 'AbortError') return;
+                    console.warn("Mètode modern no permès, usant alternativa clàssica.");
+                }
+            }
+            
+            document.getElementById('workspace-folder-input').click();
+        }
+
+        document.getElementById('workspace-folder-input').addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            fallbackParsedFiles = [];
+            workspaceHandle = null; 
+            
+            const folderName = files[0].webkitRelativePath.split('/')[0] || "Carpeta Local";
+            document.getElementById('workspace-path-badge').textContent = `Carpeta (Mode Lectura): ${folderName}`;
+
+            document.getElementById('workspace-step-1').classList.add('hidden');
+            document.getElementById('workspace-step-2').classList.remove('hidden');
+            document.getElementById('workspace-step-2').classList.add('flex');
+
+            const listContainer = document.getElementById('project-list');
+            listContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 text-sm italic">Escanejant la carpeta...</div>';
+
+            const jsonFiles = files.filter(f => f.name.toLowerCase().endsWith('.json'));
+            for (const file of jsonFiles) {
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    const isProject = file.name.startsWith('ST_');
+                    const isChar = file.name.toLowerCase().startsWith('ch_');
+                    
+                    if (isProject || isChar) {
+                        fallbackParsedFiles.push({
+                            name: file.name,
+                            path: file.webkitRelativePath,
+                            isProject,
+                            isChar,
+                            data,
+                            date: file.lastModified
+                        });
+                    }
+                } catch (err) {}
+            }
+
+            listProjectsFallback();
+        });
+
+        function listProjectsFallback() {
+            const listContainer = document.getElementById('project-list');
+            const projectFiles = fallbackParsedFiles.filter(f => f.isProject);
+
+            if (projectFiles.length === 0) {
+                listContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 text-sm italic">No s\'ha trobat cap projecte. Creeu-ne un de nou!</div>';
+                return;
+            }
+
+            projectFiles.sort((a, b) => b.date - a.date);
+            listContainer.innerHTML = '';
+
+            projectFiles.forEach(project => {
+                const btn = document.createElement('button');
+                const dateObj = new Date(project.date);
+                const dateStr = dateObj.toLocaleDateString('ca-ES', { 
+                    year: 'numeric', month: 'short', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit' 
+                });
+                
+                btn.className = 'w-full text-left px-4 py-3 bg-white border border-slate-200 rounded shadow-sm hover:border-blue-400 hover:shadow transition-all flex items-center justify-between group';
+                btn.innerHTML = `
+                    <div class="flex flex-col max-w-[80%] pointer-events-none">
+                        <span class="font-bold text-slate-800 truncate">${escapeHTML(project.data.storyTitle || project.title)}</span>
+                        <span class="text-xs text-slate-500 mt-1">Darrera modificació: ${dateStr}</span>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                `;
+                btn.onclick = () => {
+                    try {
+                        const importedState = project.data;
+                        if (importedState && Array.isArray(importedState.chapters)) {
+                            state = importedState;
+                            currentProjectFolderHandle = null;
+                            currentFileHandle = null;
+                            
+                            const path = project.path;
+                            currentFallbackFolderPath = path.substring(0, path.lastIndexOf('/') + 1);
+                            
+                            closeWorkspaceModal();
+                            updateUIForActiveProject();
+                            showToast(`Projecte "${state.storyTitle}" carregat (Mode Lectura).`);
+                        } else {
+                            throw new Error("Format invàlid");
+                        }
+                    } catch (error) {
+                        console.error("Error carregant projecte:", error);
+                        showToast("L'arxiu d'aquest projecte no s'ha pogut llegir o està corrupte.", "error");
+                    }
+                };
+                listContainer.appendChild(btn);
+            });
+        }
+
+        async function scanForProjects(dirHandle) {
+            let results = [];
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file' && entry.name.startsWith('ST_') && entry.name.endsWith('.json')) {
+                    try {
+                        const file = await entry.getFile();
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        results.push({
+                            fileHandle: entry,
+                            folderHandle: dirHandle,
+                            title: data.storyTitle || 'Sense títol',
+                            date: file.lastModified
+                        });
+                    } catch (e) {}
+                } else if (entry.kind === 'directory') {
+                    if (!entry.name.startsWith('.') && entry.name !== 'node_modules') {
+                        try {
+                            const subResults = await scanForProjects(entry);
+                            results = results.concat(subResults);
+                        } catch (e) {}
+                    }
+                }
+            }
+            return results;
+        }
+
+        async function listProjects() {
+            if (!workspaceHandle) return;
+            const listContainer = document.getElementById('project-list');
+            listContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 text-sm italic">Escanejant la carpeta i subcarpetes...</div>';
+
+            try {
+                const projects = await scanForProjects(workspaceHandle);
+
+                if (projects.length === 0) {
+                    listContainer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 text-sm italic">No s\'ha trobat cap projecte. Creeu-ne un de nou!</div>';
+                    return;
+                }
+
+                projects.sort((a, b) => b.date - a.date);
+                listContainer.innerHTML = '';
+
+                projects.forEach(project => {
+                    const btn = document.createElement('button');
+                    const dateObj = new Date(project.date);
+                    const dateStr = dateObj.toLocaleDateString('ca-ES', { 
+                        year: 'numeric', month: 'short', day: 'numeric', 
+                        hour: '2-digit', minute: '2-digit' 
+                    });
+                    
+                    btn.className = 'w-full text-left px-4 py-3 bg-white border border-slate-200 rounded shadow-sm hover:border-blue-400 hover:shadow transition-all flex items-center justify-between group';
+                    btn.innerHTML = `
+                        <div class="flex flex-col max-w-[80%] pointer-events-none">
+                            <span class="font-bold text-slate-800 truncate">${escapeHTML(project.title)}</span>
+                            <span class="text-xs text-slate-500 mt-1">Darrera modificació: ${dateStr}</span>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    `;
+                    btn.onclick = () => loadProjectFromWorkspace(project.fileHandle, project.folderHandle);
+                    listContainer.appendChild(btn);
+                });
+
+            } catch (error) {
+                console.error("Error llistant projectes:", error);
+                listContainer.innerHTML = '<div class="text-red-500 text-sm p-4">Hi ha hagut un error llegint la carpeta principal.</div>';
+            }
+        }
+
+        async function createNewProjectFromWorkspace() {
+            const input = document.getElementById('ws-new-project-name');
+            const templateSelect = document.getElementById('ws-new-project-template');
+            
+            let projectName = input.value.trim();
+            const templateId = templateSelect.value;
+            
+            if (!projectName) {
+                showToast("Cal escriure un nom pel projecte.", "error");
+                input.focus();
+                return;
+            }
+
+            const safeName = projectName.replace(/[/\\?%*:|"<>]/g, '-').trim();
+            const prefix = safeName.startsWith('ST_') ? '' : 'ST_';
+            const folderName = prefix + safeName;
+            const fileName = prefix + safeName + '.json';
+
+            try {
+                if (workspaceHandle && window.self === window.top) {
+                    currentProjectFolderHandle = await workspaceHandle.getDirectoryHandle(folderName, { create: true });
+                    currentFileHandle = await currentProjectFolderHandle.getFileHandle(fileName, { create: true });
+
+                    state = getTemplateState(projectName, templateId);
+                    await saveToDisk();
+                    showToast("Projecte creat i desat a l'espai de treball.");
+                } else {
+                    state = getTemplateState(projectName, templateId);
+                    currentProjectFolderHandle = null;
+                    currentFileHandle = null;
+                    currentFallbackFolderPath = null;
+                    showToast("Projecte creat en Mode Lectura. Es descarregarà en desar.");
+                }
+
+                input.value = '';
+                closeWorkspaceModal();
+                updateUIForActiveProject();
+                
+            } catch (error) {
+                console.error("Error creant el projecte:", error);
+                showToast("No s'ha pogut crear la carpeta del projecte.", "error");
+            }
+        }
+
+        async function loadProjectFromWorkspace(fileHandle, folderHandle) {
+            try {
+                currentProjectFolderHandle = folderHandle;
+                currentFileHandle = fileHandle;
+                
+                const file = await currentFileHandle.getFile();
+                const contents = await file.text();
+                
+                const importedState = JSON.parse(contents);
+                if (importedState && Array.isArray(importedState.chapters)) {
+                    state = importedState;
+                    closeWorkspaceModal();
+                    updateUIForActiveProject();
+                    showToast(`Projecte "${state.storyTitle}" carregat.`);
+                } else {
+                    throw new Error("Format invàlid");
+                }
+            } catch (error) {
+                console.error("Error carregant projecte:", error);
+                showToast("L'arxiu d'aquest projecte no s'ha pogut llegir o està corrupte.", "error");
+            }
+        }
+
+        async function saveCurrentProject() {
+            let title = state.storyTitle ? state.storyTitle.trim() : '';
+            if (!title) {
+                title = prompt("Si us plau, introduïu un títol per a la història abans de desar:");
+                if (!title) {
+                    showToast("Cal un títol per desar el projecte.", "error");
+                    return;
+                }
+            }
+            state.storyTitle = title;
+            document.getElementById('story-title').value = state.storyTitle;
+            
+            if (workspaceHandle && window.self === window.top && !currentProjectFolderHandle) {
+                try {
+                    const safeName = state.storyTitle.replace(/[/\\?%*:|"<>]/g, '-').trim();
+                    const prefix = safeName.startsWith('ST_') ? '' : 'ST_';
+                    const folderName = prefix + safeName;
+                    const fileName = prefix + safeName + '.json';
+
+                    currentProjectFolderHandle = await workspaceHandle.getDirectoryHandle(folderName, { create: true });
+                    currentFileHandle = await currentProjectFolderHandle.getFileHandle(fileName, { create: true });
+                } catch(e) {}
+            }
+
+            if (currentFileHandle) {
+                try {
+                    await saveToDisk();
+                    showToast('S\'ha desat el projecte a la teva carpeta!');
+                } catch (error) {
+                    console.error("Error desant a disc:", error);
+                    showToast("S'ha produït un error al desar. S'està utilitzant el mode de descàrrega.", "error");
+                    exportProject(); 
+                }
+            } else {
+                exportProject();
+            }
+        }
+
+        async function saveToDisk() {
+            if (!currentFileHandle) return;
+            const writable = await currentFileHandle.createWritable();
+            await writable.write(JSON.stringify(state, null, 2));
+            await writable.close();
+        }
+
+        function updateUIForActiveProject() {
+            const titleInput = document.getElementById('story-title');
+            titleInput.value = state.storyTitle || '';
+            renderBoard();
+            
+            setTimeout(() => {
+                centerBoard();
+            }, 50);
+        }
+
+        // --- PAN & ZOOM ---
+        function updateBoardTransform() {
+            boardCanvas.style.transform = `translate(${boardX}px, ${boardY}px) scale(${boardScale})`;
+        }
+
+        function resetView() {
+            boardScale = 1;
+            boardX = 0;
+            boardY = 0;
+            updateBoardTransform();
+        }
+
+        function centerBoard() {
+            if (state.chapters.length === 0 && (!state.freeScenes || state.freeScenes.length === 0)) {
+                resetView();
+                return;
+            }
+
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            
+            const chapterEls = document.querySelectorAll('.chapter-col');
+            chapterEls.forEach(el => {
+                const id = el.dataset.chapterId;
+                const ch = state.chapters.find(c => c.id === id);
+                if (ch) {
+                    const w = el.offsetWidth;
+                    const h = el.offsetHeight;
+                    if (ch.x < minX) minX = ch.x;
+                    if (ch.y < minY) minY = ch.y;
+                    if (ch.x + w > maxX) maxX = ch.x + w;
+                    if (ch.y + h > maxY) maxY = ch.y + h;
+                }
+            });
+            
+            const freeNotes = document.querySelectorAll('.note-card.absolute');
+            freeNotes.forEach(el => {
+                const id = el.dataset.sceneId;
+                const sc = state.freeScenes.find(s => s.id === id);
+                if (sc) {
+                    const w = el.offsetWidth;
+                    const h = el.offsetHeight;
+                    if (sc.x < minX) minX = sc.x;
+                    if (sc.y < minY) minY = sc.y;
+                    if (sc.x + w > maxX) maxX = sc.x + w;
+                    if (sc.y + h > maxY) maxY = sc.y + h;
+                }
+            });
+
+            if (minX === Infinity) {
+                resetView();
+                return;
+            }
+            
+            const padding = 60;
+            minX -= padding;
+            minY -= padding;
+            maxX += padding;
+            maxY += padding;
+            
+            const contentWidth = maxX - minX;
+            const contentHeight = maxY - minY;
+            
+            const containerRect = boardContainer.getBoundingClientRect();
+            const scaleX = containerRect.width / contentWidth;
+            const scaleY = containerRect.height / contentHeight;
+            
+            let newScale = Math.min(scaleX, scaleY);
+            newScale = Math.max(0.15, Math.min(newScale, 1.5)); 
+            
+            boardScale = newScale;
+            
+            const scaledContentWidth = contentWidth * boardScale;
+            const scaledContentHeight = contentHeight * boardScale;
+            
+            boardX = (containerRect.width - scaledContentWidth) / 2 - (minX * boardScale);
+            boardY = (containerRect.height - scaledContentHeight) / 2 - (minY * boardScale);
+            
+            updateBoardTransform();
+        }
+
+        boardContainer.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.chapter-col') || e.target.closest('.note-card') || e.target.closest('button')) {
+                return;
+            }
+            
+            isPanning = true;
+            startPanX = e.clientX - boardX;
+            startPanY = e.clientY - boardY;
+            boardContainer.classList.add('cursor-grabbing');
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            boardX = e.clientX - startPanX;
+            boardY = e.clientY - startPanY;
+            updateBoardTransform();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isPanning) {
+                isPanning = false;
+                boardContainer.classList.remove('cursor-grabbing');
+            }
+        });
+
+        boardContainer.addEventListener('wheel', (e) => {
+            const scenesContainer = e.target.closest('.scenes-container');
+            const isScrollable = scenesContainer && scenesContainer.scrollHeight > scenesContainer.clientHeight;
+
+            if (isScrollable && !e.ctrlKey) return; 
+
+            e.preventDefault();
+
+            if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                boardX -= e.deltaX;
+                boardY -= e.deltaY;
+            } else {
+                const zoomSensitivity = 0.003;
+                const delta = -e.deltaY * zoomSensitivity;
+                let newScale = boardScale * Math.exp(delta);
+                newScale = Math.max(0.2, Math.min(newScale, 2.5));
+
+                const rect = boardContainer.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                boardX = mouseX - (mouseX - boardX) * (newScale / boardScale);
+                boardY = mouseY - (mouseY - boardY) * (newScale / boardScale);
+                boardScale = newScale;
+            }
+            updateBoardTransform();
+        }, { passive: false });
+
+        // --- EXPORTAR I IMPORTAR (MODE BÀSIC / FALLBACK JSON) ---
+        function exportProject() {
+            let title = state.storyTitle ? state.storyTitle.trim() : '';
+            if (!title) {
+                title = prompt("Si us plau, introduïu un títol per a la història abans de desar:");
+                if (!title) {
+                    showToast("Cal un títol per desar el projecte.", "error");
+                    return;
+                }
+            }
+            state.storyTitle = title;
+            document.getElementById('story-title').value = state.storyTitle;
+
+            const dataStr = JSON.stringify(state, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            
+            const safeName = state.storyTitle.replace(/[/\\?%*:|"<>]/g, '-').trim();
+            const prefix = safeName.startsWith('ST_') ? '' : 'ST_';
+            const fileName = `${prefix}${safeName}.json`;
+
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', fileName);
+            linkElement.click();
+            
+            showToast('S\'ha descarregat el fitxer del projecte.');
+        }
+
+        function importProjectFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedState = JSON.parse(e.target.result);
+                    if (importedState && Array.isArray(importedState.chapters)) {
+                        state = importedState;
+                        currentProjectFolderHandle = null;
+                        currentFileHandle = null;
+                        currentFallbackFolderPath = null;
+                        
+                        updateUIForActiveProject();
+                        showToast('Projecte carregat manualment des de fitxer.');
+                    } else {
+                        showToast('El fitxer no té un format vàlid.', 'error');
+                    }
+                } catch (err) {
+                    console.error("Error en importar JSON:", err);
+                    showToast('S\'ha produït un error en llegir el fitxer.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- NOU SISTEMA DE DRAG: NETEJA I GESTIÓ ---
+        function extractDraggedScene() {
+            let sceneData = null;
+            if (draggedType === 'scene') {
+                const ch = state.chapters.find(c => c.id === draggedFromChapterId);
+                if (ch) {
+                    const scIndex = ch.scenes.findIndex(s => s.id === draggedSceneId);
+                    if (scIndex > -1) [sceneData] = ch.scenes.splice(scIndex, 1);
+                }
+            } else if (draggedType === 'free-scene') {
+                const scIndex = (state.freeScenes || []).findIndex(s => s.id === draggedSceneId);
+                if (scIndex > -1) [sceneData] = state.freeScenes.splice(scIndex, 1);
+            } else if (draggedType === 'character-from-sidebar') {
+                const charData = JSON.parse(draggedCharacterData);
+                sceneData = {
+                    id: generateId(),
+                    title: charData.name || 'Personatge',
+                    content: charData.role || 'Intervenció de la figura.',
+                    imageUrl: charData.image || null,
+                    color: 'post-pink',
+                    fontSize: 'text-lg',
+                    textColor: 'text-slate-800'
+                };
+            }
+            return sceneData;
+        }
+
+        function cleanupDrag() {
+            if (dragGhost) {
+                dragGhost.remove();
+                dragGhost = null;
+            }
+            document.querySelectorAll('.note-dragging, .chapter-dragging').forEach(el => {
+                el.classList.remove('note-dragging', 'chapter-dragging');
+            });
+            document.querySelectorAll('.drop-zone-active').forEach(el => {
+                el.classList.remove('drop-zone-active');
+            });
+            document.body.classList.remove('is-dragging');
+            draggedType = null;
+            draggedSceneId = null;
+            draggedFromChapterId = null;
+            draggedChapterId = null;
+            draggedElement = null;
+            draggedCharacterData = null;
+        }
+
+        document.addEventListener('dragover', (e) => {
+            if (dragGhost) {
+                e.preventDefault(); 
+                if (draggedType === 'character-from-sidebar') {
+                    dragGhost.style.left = (e.clientX - dragOffsetX) + 'px';
+                    dragGhost.style.top = (e.clientY - dragOffsetY) + 'px';
+                } else {
+                    dragGhost.style.left = (e.clientX - dragOffsetX * boardScale) + 'px';
+                    dragGhost.style.top = (e.clientY - dragOffsetY * boardScale) + 'px';
+                }
+            }
+        });
+
+        // --- RENDERITZACIÓ PRINCIPAL ---
+        function renderBoard() {
+            boardCanvas.innerHTML = '';
+
+            state.chapters.forEach(chapter => {
+                const chapterBgColor = chapter.color ? (chapter.color === 'slate-100' ? 'bg-slate-100' : `bg-${chapter.color}`) : 'bg-slate-100';
+
+                const chapterEl = document.createElement('div');
+                chapterEl.className = `chapter-col pointer-events-auto ${chapterBgColor} backdrop-blur-sm flex flex-col border border-slate-200/50 shadow-lg ${chapter.collapsed ? 'rounded-xl' : 'rounded-t-xl rounded-b-xl'}`;
+                chapterEl.dataset.chapterId = chapter.id;
+
+                chapterEl.style.left = `${chapter.x || 50}px`;
+                chapterEl.style.top = `${chapter.y || 50}px`;
+                chapterEl.style.width = chapter.width ? `${chapter.width}px` : 'fit-content';
+
+                // Quan col·lapsada: alçada fixa pel capçal + comptador; Quan expandida: alçada guardada o auto
+                if (chapter.collapsed) {
+                    chapterEl.style.height = 'auto';
+                    chapterEl.style.minHeight = '60px';
+                } else {
+                    chapterEl.style.height = chapter.height ? `${chapter.height}px` : 'fit-content';
+                }
+                chapterEl.style.minWidth = '250px';
+
+                chapterEl.addEventListener('mouseup', () => {
+                    const ch = state.chapters.find(c => c.id === chapter.id);
+                    if (ch) {
+                        if (chapterEl.style.width && chapterEl.style.width !== 'fit-content') ch.width = parseInt(chapterEl.style.width);
+                        if (chapterEl.style.height && chapterEl.style.height !== 'fit-content') ch.height = parseInt(chapterEl.style.height);
+                    }
+                });
+
+                const headerEl = document.createElement('div');
+                headerEl.className = `p-4 border-slate-200 flex justify-between items-center bg-white/50 group cursor-grab active:cursor-grabbing ${chapter.collapsed ? 'rounded-xl' : 'rounded-t-xl border-b'}`;
+                headerEl.draggable = true;
+                
+                headerEl.addEventListener('dragstart', (e) => {
+                    cleanupDrag();
+                    document.body.classList.add('is-dragging');
+                    draggedType = 'chapter';
+                    draggedChapterId = chapter.id;
+                    draggedElement = chapterEl;
+                    
+                    const rect = chapterEl.getBoundingClientRect();
+                    dragOffsetX = (e.clientX - rect.left) / boardScale;
+                    dragOffsetY = (e.clientY - rect.top) / boardScale;
+                    
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', 'chapter');
+                    
+                    const emptyImg = new Image();
+                    emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                    e.dataTransfer.setDragImage(emptyImg, 0, 0);
+
+                    dragGhost = chapterEl.cloneNode(true);
+                    dragGhost.style.position = 'fixed';
+                    dragGhost.style.pointerEvents = 'none';
+                    dragGhost.style.zIndex = '9999';
+                    dragGhost.style.opacity = '0.8';
+                    dragGhost.style.transform = `scale(${boardScale})`;
+                    dragGhost.style.transformOrigin = 'top left';
+                    dragGhost.style.left = rect.left + 'px';
+                    dragGhost.style.top = rect.top + 'px';
+                    dragGhost.style.width = rect.width / boardScale + 'px';
+                    dragGhost.style.height = rect.height / boardScale + 'px';
+                    dragGhost.removeAttribute('id');
+                    document.body.appendChild(dragGhost);
+                    
+                    setTimeout(() => chapterEl.classList.add('chapter-dragging'), 0);
+                });
+                
+                headerEl.addEventListener('dragend', () => cleanupDrag());
+
+                const chapterFontSize = chapter.fontSize || 'text-xl';
+                const chapterTextColor = chapter.textColor || 'text-slate-800';
+                let chapterIconHtml = chapter.icon ? `<span class="text-2xl">${chapter.icon}</span>` : `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>`;
+                let chapterTagHtml = chapter.tag ? `<span class="text-xs font-medium px-2 py-0.5 bg-black/10 rounded text-slate-800 border border-black/5 flex-shrink-0 ml-2">${escapeHTML(chapter.tag)}</span>` : '';
+
+                headerEl.innerHTML = `
+                    <div class="flex items-center gap-2 flex-1 pointer-events-auto cursor-pointer" onclick="openChapterModal('${chapter.id}')" title="Edita la carpeta">
+                        <button onclick="toggleChapterCollapse('${chapter.id}', event)" class="collapse-btn p-1 hover:bg-slate-200 rounded transition-colors flex-shrink-0" title="${chapter.collapsed ? 'Descol·lapa' : 'Col·lapa'}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-500 transition-transform duration-200 ${chapter.collapsed ? '-rotate-90' : 'rotate-0'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        ${chapterIconHtml}
+                        <h2 class="font-bold whitespace-nowrap hover:opacity-80 transition ${chapterFontSize} ${chapterTextColor}" title="${escapeHTML(chapter.title)}">${escapeHTML(chapter.title)}</h2>
+                        ${chapterTagHtml}
+                        ${chapter.collapsed ? `<span class="text-xs text-slate-500 ml-2">(${chapter.scenes.length})</span>` : ''}
+                    </div>
+                    <div class="flex gap-1 ml-2">
+                        <button class="add-scene-btn p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded pointer-events-auto" onclick="openSceneModal('${chapter.id}')" title="Afegeix una escena">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                const scenesContainer = document.createElement('div');
+                scenesContainer.className = `overflow-auto no-scrollbar relative min-h-[100px] transition-colors scenes-container pointer-events-auto flex-1 ${chapter.collapsed ? 'hidden' : ''}`;
+                
+                scenesContainer.addEventListener('dragover', (e) => {
+                    if (draggedType === 'scene' || draggedType === 'character-from-sidebar' || draggedType === 'free-scene') {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = draggedType === 'character-from-sidebar' ? 'copy' : 'move';
+                    }
+                });
+                scenesContainer.addEventListener('dragenter', (e) => {
+                    if (draggedType === 'scene' || draggedType === 'character-from-sidebar' || draggedType === 'free-scene') {
+                        e.preventDefault();
+                        const container = e.currentTarget;
+                        if (container !== draggedElement?.parentElement) {
+                            container.classList.add('drop-zone-active');
+                        }
+                    }
+                });
+                scenesContainer.addEventListener('dragleave', (e) => {
+                    if (draggedType === 'scene' || draggedType === 'character-from-sidebar' || draggedType === 'free-scene') {
+                        const container = e.currentTarget;
+                        if (!container.contains(e.relatedTarget)) {
+                            container.classList.remove('drop-zone-active');
+                        }
+                    }
+                });
+                scenesContainer.addEventListener('drop', (e) => {
+                    if (!draggedType || draggedType === 'chapter') return;
+                    e.preventDefault();
+                    e.stopPropagation(); 
+                    
+                    e.currentTarget.classList.remove('drop-zone-active');
+
+                    const toChapter = state.chapters.find(c => c.id === chapter.id);
+                    if (!toChapter) return;
+
+                    const sceneData = extractDraggedScene();
+
+                    if (sceneData) {
+                        const containerRect = scenesContainer.getBoundingClientRect();
+                        const dropX = (e.clientX - containerRect.left) / boardScale - dragOffsetX + scenesContainer.scrollLeft;
+                        const dropY = (e.clientY - containerRect.top) / boardScale - dragOffsetY + scenesContainer.scrollTop;
+
+                        sceneData.x = Math.max(0, dropX);
+                        sceneData.y = Math.max(0, dropY);
+
+                        toChapter.scenes.push(sceneData);
+                    }
+
+                    cleanupDrag();
+                    renderBoard();
+                });
+
+                chapter.scenes.forEach(scene => {
+                    const sceneEl = createNoteCardElement(scene, chapter.id);
+                    sceneEl.classList.add('absolute');
+                    sceneEl.style.left = `${scene.x !== undefined ? scene.x : 20}px`;
+                    sceneEl.style.top = `${scene.y !== undefined ? scene.y : 20}px`;
+                    scenesContainer.appendChild(sceneEl);
+                });
+
+                const footerEl = document.createElement('div');
+                footerEl.className = `p-3 border-t border-slate-200 bg-white/30 rounded-b-xl pointer-events-auto ${chapter.collapsed ? 'hidden' : ''}`;
+                footerEl.innerHTML = `
+                    <button onclick="openSceneModal('${chapter.id}')" class="w-full py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 rounded-md transition flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Afegeix una escena
+                    </button>
+                `;
+
+                chapterEl.appendChild(headerEl);
+                chapterEl.appendChild(scenesContainer);
+                chapterEl.appendChild(footerEl);
+                
+                boardCanvas.appendChild(chapterEl);
+            });
+
+            if (state.freeScenes) {
+                state.freeScenes.forEach(scene => {
+                    const sceneEl = createNoteCardElement(scene, '__free__');
+                    // Important: Només position absolute, no alterem the flexbox global
+                    sceneEl.classList.add('absolute', 'w-64');
+                    const x = scene.x !== undefined ? scene.x : 50;
+                    const y = scene.y !== undefined ? scene.y : 150;
+                    sceneEl.style.left = `${x}px`;
+                    sceneEl.style.top = `${y}px`;
+                    boardCanvas.appendChild(sceneEl);
+                });
+            }
+        }
+
+        // Funció per disparar l'input ocult de pujar imatge des del taulell
+        function triggerGlobalImageUpload(e, chapterId, sceneId) {
+            e.stopPropagation();
+            uploadTarget = { chapterId, sceneId };
+            const input = document.getElementById('global-image-upload');
+            input.value = '';
+            input.click();
+        }
+
+        document.getElementById('global-image-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file || !uploadTarget.sceneId) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                let scene = null;
+                if (uploadTarget.chapterId === '__free__') {
+                    scene = (state.freeScenes || []).find(s => s.id === uploadTarget.sceneId);
+                } else {
+                    const chapter = state.chapters.find(c => c.id === uploadTarget.chapterId);
+                    scene = chapter?.scenes.find(s => s.id === uploadTarget.sceneId);
+                }
+
+                if (scene) {
+                    scene.imageUrl = evt.target.result;
+                    renderBoard();
+                    showToast("Imatge penjada manualment amb èxit!");
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function createNoteCardElement(scene, chapterId) {
+            const sceneEl = document.createElement('div');
+            // Afegim la classe global per post-its. Sense cap absolute ni relative aquí, ho afegirem manualment
+            sceneEl.className = `note-card bg-${scene.color} p-4 rounded-sm shadow-md cursor-grab active:cursor-grabbing border border-black/5 pointer-events-auto`;
+            
+            sceneEl.style.resize = 'both';
+            sceneEl.style.overflow = 'hidden';
+            
+            sceneEl.style.width = scene.width ? `${scene.width}px` : '256px';
+            sceneEl.style.height = scene.height ? `${scene.height}px` : 'fit-content';
+            sceneEl.style.minWidth = '200px';
+            
+            sceneEl.addEventListener('mouseup', (e) => {
+                if (sceneEl.style.width && sceneEl.style.width !== 'auto' && sceneEl.style.width !== '256px') {
+                    scene.width = parseInt(sceneEl.style.width);
+                }
+                if (sceneEl.style.height && sceneEl.style.height !== 'fit-content') {
+                    scene.height = parseInt(sceneEl.style.height);
+                }
+            });
+
+            sceneEl.draggable = true;
+            sceneEl.dataset.sceneId = scene.id;
+            sceneEl.dataset.chapterId = chapterId;
+
+            const pin = document.createElement('div');
+            pin.className = 'pin';
+            sceneEl.appendChild(pin);
+            
+            const fontSizeClass = scene.fontSize || 'text-lg';
+            const textColorClass = scene.textColor || 'text-slate-800';
+
+            const titleRow = document.createElement('div');
+            titleRow.className = 'flex justify-between items-start mb-2 mt-1 gap-2 relative';
+            
+            let iconHtml = '';
+            if (scene.icon) {
+                iconHtml = `<div class="text-xl leading-none flex-shrink-0">${scene.icon}</div>`;
+            }
+
+            titleRow.innerHTML = `
+                <div class="flex items-start gap-2 overflow-hidden flex-1">
+                    ${iconHtml}
+                    <h3 class="font-bold leading-tight ${fontSizeClass} ${textColorClass}">${escapeHTML(scene.title) || 'Sense títol'}</h3>
+                </div>
+                <div class="flex gap-1 z-10 bg-white/40 hover:bg-white/80 rounded p-1 transition-colors h-max">
+                    <button onclick="triggerGlobalImageUpload(event, '${chapterId}', '${scene.id}')" class="text-slate-500 hover:text-blue-600 transition-colors" title="Pujar una imatge del dispositiu">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    </button>
+                    <div class="w-[1px] bg-slate-300 mx-1"></div>
+                    <button onclick="generateImage(event, '${chapterId}', '${scene.id}')" class="text-slate-500 hover:text-amber-500 transition-colors" title="Generar imatge amb IA">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09l2.846.813-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+            sceneEl.appendChild(titleRow);
+
+            if (scene.isGeneratingImage) {
+                const loadingImg = document.createElement('div');
+                loadingImg.className = 'w-full h-32 bg-black/5 animate-pulse rounded border border-black/10 flex items-center justify-center mb-2';
+                loadingImg.innerHTML = '<span class="text-xs font-medium text-slate-500">Creant imatge...</span>';
+                sceneEl.appendChild(loadingImg);
+            } else if (scene.imageUrl) {
+                const img = document.createElement('img');
+                img.src = scene.imageUrl;
+                img.className = 'max-w-full h-auto rounded border border-black/10 mb-2 pointer-events-none object-contain mx-auto';
+                sceneEl.appendChild(img);
+            }
+
+            const contentEl = document.createElement('p');
+            contentEl.className = `font-handwriting leading-snug whitespace-pre-wrap ${fontSizeClass} ${textColorClass}`;
+            contentEl.textContent = scene.content;
+            sceneEl.appendChild(contentEl);
+            
+            if (scene.tag) {
+                const tagEl = document.createElement('div');
+                tagEl.className = 'mt-3 flex';
+                tagEl.innerHTML = `<span class="text-xs font-medium px-2 py-0.5 bg-black/10 rounded text-slate-800 border border-black/5">${escapeHTML(scene.tag)}</span>`;
+                sceneEl.appendChild(tagEl);
+            }
+
+            sceneEl.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                cleanupDrag();
+                document.body.classList.add('is-dragging');
+                
+                draggedType = chapterId === '__free__' ? 'free-scene' : 'scene';
+                draggedSceneId = scene.id;
+                draggedFromChapterId = chapterId;
+                draggedElement = e.currentTarget;
+                
+                const rect = e.currentTarget.getBoundingClientRect();
+                dragOffsetX = (e.clientX - rect.left) / boardScale;
+                dragOffsetY = (e.clientY - rect.top) / boardScale;
+
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', 'scene');
+                
+                const emptyImg = new Image();
+                emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                e.dataTransfer.setDragImage(emptyImg, 0, 0);
+
+                dragGhost = e.currentTarget.cloneNode(true);
+                dragGhost.style.position = 'fixed';
+                dragGhost.style.pointerEvents = 'none';
+                dragGhost.style.zIndex = '9999';
+                dragGhost.style.opacity = '0.9';
+                dragGhost.style.transform = `scale(${boardScale})`;
+                dragGhost.style.transformOrigin = 'top left';
+                dragGhost.style.left = rect.left + 'px';
+                dragGhost.style.top = rect.top + 'px';
+                dragGhost.style.width = rect.width / boardScale + 'px';
+                dragGhost.style.height = rect.height / boardScale + 'px';
+                dragGhost.removeAttribute('id');
+                document.body.appendChild(dragGhost);
+                
+                const target = e.currentTarget;
+                setTimeout(() => {
+                    target.classList.add('note-dragging');
+                }, 0);
+            });
+            
+            sceneEl.addEventListener('dragend', () => cleanupDrag());
+            
+            // Permetem editar evitant clicar a la zona de redimensionament (a baix a la dreta)
+            sceneEl.addEventListener('click', (e) => {
+                const rect = sceneEl.getBoundingClientRect();
+                const isResizeHandle = (e.clientX > rect.right - 15 && e.clientY > rect.bottom - 15);
+                if (!isResizeHandle) {
+                    openSceneModal(chapterId, scene.id);
+                }
+            });
+
+            return sceneEl;
+        }
+
+        // --- DROP LLIURE AL TAULELL ---
+        boardContainer.addEventListener('dragover', (e) => {
+            if (draggedType) e.preventDefault();
+        });
+
+        boardContainer.addEventListener('drop', (e) => {
+            if (!draggedType) return;
+            e.preventDefault();
+            
+            const containerRect = boardContainer.getBoundingClientRect();
+            const mouseBoardX = (e.clientX - containerRect.left - boardX) / boardScale;
+            const mouseBoardY = (e.clientY - containerRect.top - boardY) / boardScale;
+
+            let dropX, dropY;
+
+            if (draggedType === 'character-from-sidebar') {
+                dropX = mouseBoardX - 128; 
+                dropY = mouseBoardY - 40;  
+            } else {
+                dropX = mouseBoardX - dragOffsetX;
+                dropY = mouseBoardY - dragOffsetY;
+            }
+
+            if (draggedType === 'chapter') {
+                const chIndex = state.chapters.findIndex(c => c.id === draggedChapterId);
+                if (chIndex > -1) {
+                    state.chapters[chIndex].x = dropX;
+                    state.chapters[chIndex].y = dropY;
+                }
+            } else {
+                const sceneData = extractDraggedScene();
+                if (sceneData) {
+                    sceneData.x = dropX;
+                    sceneData.y = dropY;
+                    if (!state.freeScenes) state.freeScenes = [];
+                    state.freeScenes.push(sceneData);
+                }
+            }
+            
+            cleanupDrag();
+            renderBoard();
+        });
+
+        // --- GENERACIÓ D'IMATGES AMB IA ---
+        async function generateImage(e, chapterId, sceneId) {
+            e.stopPropagation();
+            
+            let scene = null;
+            if (chapterId === '__free__') {
+                scene = (state.freeScenes || []).find(s => s.id === sceneId);
+            } else {
+                const chapter = state.chapters.find(c => c.id === chapterId);
+                scene = chapter?.scenes.find(s => s.id === sceneId);
+            }
+            
+            if (!scene) return;
+
+            const promptContext = `Il·lustració, estil concept art per a pre-producció. Escena clau: ${scene.title}. Descripció visual: ${scene.content}`;
+
+            scene.isGeneratingImage = true;
+            renderBoard();
+
+            try {
+                const apiKey = "";
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        instances: { prompt: promptContext },
+                        parameters: { sampleCount: 1 }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error("L'API ha retornat un error.");
+                }
+
+                const result = await response.json();
+                if (result.predictions && result.predictions[0] && result.predictions[0].bytesBase64Encoded) {
+                    scene.imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                    showToast("S'ha generat la imatge correctament!");
+                } else {
+                    throw new Error("No s'han rebut dades d'imatge vàlides.");
+                }
+            } catch (error) {
+                console.error("Error generant imatge:", error);
+                showToast("No s'ha pogut generar la imatge. Reviseu la consola.", "error");
+            } finally {
+                scene.isGeneratingImage = false;
+                renderBoard();
+            }
+        }
+
+        // --- GESTIÓ DE MODALS D'ESCENA (Notes) ---
+        function populateEmojiPickers() {
+            const pickers = [
+                {id: 'emoji-picker-scene', selectFn: selectSceneIcon},
+                {id: 'emoji-picker-chapter', selectFn: selectChapterIcon}
+            ];
+            
+            pickers.forEach(p => {
+                const picker = document.getElementById(p.id);
+                if (!picker) return;
+                picker.innerHTML = '';
+                
+                const btnNone = document.createElement('div');
+                btnNone.className = 'col-span-8 text-sm font-medium text-center bg-slate-100 hover:bg-slate-200 cursor-pointer rounded py-1 mb-2 text-slate-600 transition';
+                btnNone.textContent = 'Sense Icona';
+                btnNone.onclick = () => p.selectFn('');
+                picker.appendChild(btnNone);
+
+                EMOJIS.forEach(emoji => {
+                    const btn = document.createElement('div');
+                    btn.className = 'emoji-btn flex items-center justify-center';
+                    btn.textContent = emoji;
+                    btn.onclick = () => p.selectFn(emoji);
+                    picker.appendChild(btn);
+                });
+            });
+        }
+
+        function selectSceneIcon(emoji) {
+            document.getElementById('scene-icon').value = emoji;
+            document.getElementById('current-icon-display').textContent = emoji || 'Cap';
+            const previewIcon = document.getElementById('preview-icon');
+            previewIcon.textContent = emoji;
+            document.getElementById('emoji-picker-scene').classList.add('hidden');
+        }
+
+        function selectChapterIcon(emoji) {
+            document.getElementById('chapter-icon').value = emoji;
+            document.getElementById('current-chapter-icon-display').textContent = emoji || 'Cap';
+            document.getElementById('chapter-preview-icon').textContent = emoji || '📁';
+            document.getElementById('emoji-picker-chapter').classList.add('hidden');
+        }
+
+        function createNewFreeNote() {
+            openSceneModal('__free__');
+        }
+
+        function removeSceneImage() {
+            document.getElementById('scene-image-url').value = '';
+            document.getElementById('scene-preview-img').src = '';
+            document.getElementById('scene-image-wrapper').classList.add('hidden');
+        }
+
+        function updateScenePreviewFont() {
+            const titleEl = document.getElementById('scene-title');
+            const contentEl = document.getElementById('scene-content');
+            const sizeClass = document.getElementById('scene-font-size').value;
+            const colorClass = document.getElementById('scene-text-color').value;
+
+            titleEl.className = `w-full bg-transparent border-none focus:ring-0 font-bold placeholder-black/40 mb-2 p-0 outline-none ${sizeClass} ${colorClass}`;
+            contentEl.className = `w-full flex-grow bg-transparent border-none focus:ring-0 font-handwriting resize-none placeholder-black/40 p-0 outline-none ${sizeClass} ${colorClass}`;
+            
+            if(sizeClass === 'text-sm') titleEl.classList.replace('text-sm', 'text-base');
+            if(sizeClass === 'text-base') titleEl.classList.replace('text-base', 'text-lg');
+            if(sizeClass === 'text-lg') titleEl.classList.replace('text-lg', 'text-xl');
+            if(sizeClass === 'text-xl') titleEl.classList.replace('text-xl', 'text-2xl');
+            if(sizeClass === 'text-2xl') titleEl.classList.replace('text-2xl', 'text-3xl');
+        }
+
+        function selectSceneFontSize(size) {
+            document.getElementById('scene-font-size').value = size;
+            document.querySelectorAll('.btn-size').forEach(btn => {
+                if (btn.dataset.size === size) {
+                    btn.classList.add('font-bold', 'ring-2', 'ring-blue-400', 'text-slate-800');
+                    btn.classList.remove('text-slate-700');
+                } else {
+                    btn.classList.remove('font-bold', 'ring-2', 'ring-blue-400', 'text-slate-800');
+                    btn.classList.add('text-slate-700');
+                }
+            });
+            updateScenePreviewFont();
+        }
+
+        function selectSceneTextColor(color) {
+            document.getElementById('scene-text-color').value = color;
+            document.querySelectorAll('.btn-tcolor').forEach(btn => {
+                if (btn.dataset.color === color) {
+                    btn.classList.add('ring-2', 'ring-blue-400', 'ring-offset-1');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-1');
+                }
+            });
+            updateScenePreviewFont();
+        }
+
+        function selectSceneBgColor(colorClass) {
+            document.getElementById('scene-color').value = colorClass;
+            
+            const preview = document.getElementById('modal-note-preview');
+            preview.className = `p-6 transition-colors duration-200 relative min-h-[250px] shadow-inner flex-shrink-0 flex flex-col bg-${colorClass}`;
+
+            document.querySelectorAll('.btn-bgcolor').forEach(btn => {
+                if (btn.dataset.color === colorClass) {
+                    btn.classList.add('border-2', 'border-slate-800');
+                    btn.classList.remove('border', 'border-black/10');
+                } else {
+                    btn.classList.remove('border-2', 'border-slate-800');
+                    btn.classList.add('border', 'border-black/10');
+                }
+            });
+        }
+
+        function updateChapterPreviewFont() {
+            const titleEl = document.getElementById('chapter-title');
+            const sizeClass = document.getElementById('chapter-font-size').value;
+            const colorClass = document.getElementById('chapter-text-color').value;
+
+            titleEl.className = `w-full bg-transparent border-none focus:ring-0 font-bold placeholder-black/40 p-0 outline-none ${sizeClass} ${colorClass}`;
+            
+            if(sizeClass === 'text-sm') titleEl.classList.replace('text-sm', 'text-lg');
+            if(sizeClass === 'text-base') titleEl.classList.replace('text-base', 'text-xl');
+            if(sizeClass === 'text-lg') titleEl.classList.replace('text-lg', 'text-2xl');
+            if(sizeClass === 'text-xl') titleEl.classList.replace('text-xl', 'text-3xl');
+            if(sizeClass === 'text-2xl') titleEl.classList.replace('text-2xl', 'text-4xl');
+        }
+
+        function selectChapterFontSize(size) {
+            document.getElementById('chapter-font-size').value = size;
+            document.querySelectorAll('.btn-chapter-size').forEach(btn => {
+                if (btn.dataset.size === size) {
+                    btn.classList.add('font-bold', 'ring-2', 'ring-blue-400', 'text-slate-800');
+                    btn.classList.remove('text-slate-700');
+                } else {
+                    btn.classList.remove('font-bold', 'ring-2', 'ring-blue-400', 'text-slate-800');
+                    btn.classList.add('text-slate-700');
+                }
+            });
+            updateChapterPreviewFont();
+        }
+
+        function selectChapterTextColor(color) {
+            document.getElementById('chapter-text-color').value = color;
+            document.querySelectorAll('.btn-chapter-tcolor').forEach(btn => {
+                if (btn.dataset.color === color) {
+                    btn.classList.add('ring-2', 'ring-blue-400', 'ring-offset-1');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-1');
+                }
+            });
+            updateChapterPreviewFont();
+        }
+
+        function selectChapterBgColor(colorClass) {
+            document.getElementById('chapter-color').value = colorClass;
+            
+            const preview = document.getElementById('modal-chapter-preview');
+            const bgClass = colorClass === 'slate-100' ? 'bg-slate-100' : `bg-${colorClass}`;
+            preview.className = `p-6 transition-colors duration-200 relative shadow-inner flex-shrink-0 flex flex-col items-start gap-2 ${bgClass}`;
+
+            document.querySelectorAll('.btn-chapter-bgcolor').forEach(btn => {
+                if (btn.dataset.color === colorClass) {
+                    btn.classList.add('border-2', 'border-slate-800');
+                    btn.classList.remove('border', 'border-black/10');
+                } else {
+                    btn.classList.remove('border-2', 'border-slate-800');
+                    btn.classList.add('border', 'border-black/10');
+                }
+            });
+        }
+        
+        function updateChapterPreviewTag() {
+            const tagInput = document.getElementById('chapter-tag');
+            const tagPreview = document.getElementById('chapter-preview-tag');
+            if (tagInput.value.trim()) {
+                tagPreview.textContent = tagInput.value.trim();
+                tagPreview.classList.remove('hidden');
+            } else {
+                tagPreview.classList.add('hidden');
+            }
+        }
+
+        function openSceneModal(chapterId, sceneId = null) {
+            const modal = document.getElementById('scene-modal');
+            const titleInput = document.getElementById('scene-title');
+            const contentInput = document.getElementById('scene-content');
+            const idInput = document.getElementById('scene-id');
+            const chapterIdInput = document.getElementById('scene-chapter-id');
+            const tagInput = document.getElementById('scene-tag');
+            const deleteBtn = document.getElementById('btn-delete-scene');
+            const moveContainer = document.getElementById('move-chapter-container');
+            const moveSelect = document.getElementById('scene-move-chapter');
+
+            document.getElementById('emoji-picker-scene').classList.add('hidden'); 
+            
+            chapterIdInput.value = chapterId;
+
+            if (sceneId) {
+                let scene = null;
+                if (chapterId === '__free__') {
+                    scene = (state.freeScenes || []).find(s => s.id === sceneId);
+                } else {
+                    const chapter = state.chapters.find(c => c.id === chapterId);
+                    scene = chapter?.scenes.find(s => s.id === sceneId);
+                }
+                
+                if (!scene) return;
+
+                idInput.value = scene.id;
+                titleInput.value = scene.title || '';
+                contentInput.value = scene.content || '';
+                tagInput.value = scene.tag || '';
+                
+                selectSceneBgColor(scene.color || 'post-yellow');
+                selectSceneFontSize(scene.fontSize || 'text-lg');
+                selectSceneTextColor(scene.textColor || 'text-slate-800');
+                selectSceneIcon(scene.icon || '');
+                
+                if (scene.imageUrl) {
+                    document.getElementById('scene-image-url').value = scene.imageUrl;
+                    document.getElementById('scene-preview-img').src = scene.imageUrl;
+                    document.getElementById('scene-image-wrapper').classList.remove('hidden');
+                } else {
+                    removeSceneImage();
+                }
+                
+                document.getElementById('scene-x').value = scene.x || '';
+                document.getElementById('scene-y').value = scene.y || '';
+                document.getElementById('scene-width').value = scene.width || '';
+                document.getElementById('scene-height').value = scene.height || '';
+                
+                deleteBtn.classList.remove('hidden');
+                moveContainer.classList.remove('hidden');
+                
+            } else {
+                idInput.value = '';
+                titleInput.value = '';
+                contentInput.value = '';
+                tagInput.value = '';
+                
+                selectSceneBgColor('post-yellow');
+                selectSceneFontSize('text-lg');
+                selectSceneTextColor('text-slate-800');
+                selectSceneIcon('');
+                removeSceneImage();
+                
+                document.getElementById('scene-x').value = '';
+                document.getElementById('scene-y').value = '';
+                document.getElementById('scene-width').value = '';
+                document.getElementById('scene-height').value = '';
+                
+                deleteBtn.classList.add('hidden');
+                moveContainer.classList.add('hidden');
+            }
+
+            moveSelect.innerHTML = '';
+            const freeOpt = document.createElement('option');
+            freeOpt.value = '__free__';
+            freeOpt.textContent = '📍 Taulell (Nota lliure)';
+            if (chapterId === '__free__') freeOpt.selected = true;
+            moveSelect.appendChild(freeOpt);
+            
+            state.chapters.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id;
+                option.textContent = `📁 ${c.title}`;
+                if (c.id === chapterId) option.selected = true;
+                moveSelect.appendChild(option);
+            });
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            titleInput.focus();
+        }
+
+        function closeSceneModal() {
+            const modal = document.getElementById('scene-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveScene() {
+            const id = document.getElementById('scene-id').value;
+            const originalChapterId = document.getElementById('scene-chapter-id').value;
+            const newChapterId = document.getElementById('scene-move-chapter').value || originalChapterId;
+            
+            const title = document.getElementById('scene-title').value.trim();
+            const content = document.getElementById('scene-content').value.trim();
+            const color = document.getElementById('scene-color').value;
+            const tag = document.getElementById('scene-tag').value.trim();
+            const fontSize = document.getElementById('scene-font-size').value;
+            const textColor = document.getElementById('scene-text-color').value;
+            const icon = document.getElementById('scene-icon').value;
+            
+            const imageUrl = document.getElementById('scene-image-url').value;
+            let storedX = document.getElementById('scene-x').value;
+            let storedY = document.getElementById('scene-y').value;
+            let storedW = document.getElementById('scene-width').value;
+            let storedH = document.getElementById('scene-height').value;
+
+            if (id) {
+                let scene = null;
+                if (originalChapterId === '__free__') {
+                    const scIndex = (state.freeScenes || []).findIndex(s => s.id === id);
+                    if (scIndex > -1) [scene] = state.freeScenes.splice(scIndex, 1);
+                } else {
+                    const chIndex = state.chapters.findIndex(c => c.id === originalChapterId);
+                    if (chIndex > -1) {
+                        const scIndex = state.chapters[chIndex].scenes.findIndex(s => s.id === id);
+                        if (scIndex > -1) [scene] = state.chapters[chIndex].scenes.splice(scIndex, 1);
+                    }
+                }
+
+                if (scene) {
+                    scene.title = title;
+                    scene.content = content;
+                    scene.color = color;
+                    scene.tag = tag;
+                    scene.fontSize = fontSize;
+                    scene.textColor = textColor;
+                    scene.icon = icon;
+                    scene.imageUrl = imageUrl || null; 
+
+                    if (newChapterId === '__free__') {
+                        if (!storedX || !storedY) {
+                            const pos = getFreePosition(false);
+                            scene.x = pos.x;
+                            scene.y = pos.y;
+                        }
+                        if (!state.freeScenes) state.freeScenes = [];
+                        state.freeScenes.push(scene);
+                    } else {
+                        const newChapter = state.chapters.find(c => c.id === newChapterId);
+                        if (newChapter) newChapter.scenes.push(scene);
+                    }
+                }
+            } else {
+                const newScene = {
+                    id: generateId(),
+                    title: title,
+                    content: content,
+                    color: color,
+                    tag: tag,
+                    fontSize: fontSize,
+                    textColor: textColor,
+                    icon: icon,
+                    imageUrl: imageUrl || null
+                };
+                if (storedW) newScene.width = parseInt(storedW);
+                if (storedH) newScene.height = parseInt(storedH);
+
+                if (originalChapterId === '__free__') {
+                    const pos = getFreePosition(false);
+                    newScene.x = pos.x;
+                    newScene.y = pos.y;
+                    if (!state.freeScenes) state.freeScenes = [];
+                    state.freeScenes.push(newScene);
+                } else {
+                    const chapter = state.chapters.find(c => c.id === originalChapterId);
+                    if (chapter) chapter.scenes.push(newScene);
+                }
+            }
+
+            closeSceneModal();
+            renderBoard();
+        }
+
+        function deleteScene() {
+            document.getElementById('delete-confirm-modal').classList.remove('hidden');
+            document.getElementById('delete-confirm-modal').classList.add('flex');
+        }
+
+        function closeDeleteConfirmModal() {
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+            document.getElementById('delete-confirm-modal').classList.remove('flex');
+        }
+
+        function confirmDeleteScene() {
+            const id = document.getElementById('scene-id').value;
+            const chapterId = document.getElementById('scene-chapter-id').value;
+            
+            if (chapterId === '__free__') {
+                if (state.freeScenes) {
+                    state.freeScenes = state.freeScenes.filter(s => s.id !== id);
+                }
+            } else {
+                const chapter = state.chapters.find(c => c.id === chapterId);
+                if (chapter) {
+                    chapter.scenes = chapter.scenes.filter(s => s.id !== id);
+                }
+            }
+            
+            closeDeleteConfirmModal();
+            closeSceneModal();
+            renderBoard();
+            showToast("Nota eliminada correctament.");
+        }
+
+        // --- GESTIÓ DE MODALS DE CAPÍTOL ---
+        function openChapterModal(chapterId = null) {
+            const modal = document.getElementById('chapter-modal');
+            const titleInput = document.getElementById('chapter-title');
+            const idInput = document.getElementById('chapter-id');
+            const deleteBtn = document.getElementById('btn-delete-chapter');
+
+            document.getElementById('emoji-picker-chapter').classList.add('hidden');
+
+            if (chapterId) {
+                const chapter = state.chapters.find(c => c.id === chapterId);
+                idInput.value = chapter.id;
+                titleInput.value = chapter.title;
+                document.getElementById('chapter-tag').value = chapter.tag || '';
+                
+                document.getElementById('chapter-width').value = chapter.width || '';
+                document.getElementById('chapter-height').value = chapter.height || '';
+                
+                selectChapterBgColor(chapter.color || 'slate-100');
+                selectChapterFontSize(chapter.fontSize || 'text-xl');
+                selectChapterTextColor(chapter.textColor || 'text-slate-800');
+                selectChapterIcon(chapter.icon || '');
+                
+                deleteBtn.classList.remove('hidden');
+            } else {
+                idInput.value = '';
+                titleInput.value = '';
+                document.getElementById('chapter-tag').value = '';
+                
+                document.getElementById('chapter-width').value = '';
+                document.getElementById('chapter-height').value = '';
+                
+                selectChapterBgColor('slate-100');
+                selectChapterFontSize('text-xl');
+                selectChapterTextColor('text-slate-800');
+                selectChapterIcon('');
+                
+                deleteBtn.classList.add('hidden');
+            }
+
+            updateChapterPreviewTag();
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            titleInput.focus();
+        }
+
+        function closeChapterModal() {
+            const modal = document.getElementById('chapter-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveChapter() {
+            const id = document.getElementById('chapter-id').value;
+            const title = document.getElementById('chapter-title').value.trim() || 'Carpeta sense títol';
+            const color = document.getElementById('chapter-color').value;
+            const tag = document.getElementById('chapter-tag').value.trim();
+            const fontSize = document.getElementById('chapter-font-size').value;
+            const textColor = document.getElementById('chapter-text-color').value;
+            const icon = document.getElementById('chapter-icon').value;
+            
+            const storedW = document.getElementById('chapter-width').value;
+            const storedH = document.getElementById('chapter-height').value;
+
+            if (id) {
+                const chapter = state.chapters.find(c => c.id === id);
+                if (chapter) {
+                    chapter.title = title;
+                    chapter.color = color;
+                    chapter.tag = tag;
+                    chapter.fontSize = fontSize;
+                    chapter.textColor = textColor;
+                    chapter.icon = icon;
+                }
+            } else {
+                const pos = getFreePosition(true);
+                const nouCapitol = {
+                    id: generateId(),
+                    title: title,
+                    scenes: [],
+                    x: pos.x,
+                    y: pos.y,
+                    color: color,
+                    tag: tag,
+                    fontSize: fontSize,
+                    textColor: textColor,
+                    icon: icon,
+                    collapsed: false
+                };
+                if (storedW) nouCapitol.width = parseInt(storedW);
+                if (storedH) nouCapitol.height = parseInt(storedH);
+                state.chapters.push(nouCapitol);
+            }
+
+            closeChapterModal();
+            renderBoard();
+        }
+
+        function deleteChapter() {
+            const id = document.getElementById('chapter-id').value;
+            const chapter = state.chapters.find(c => c.id === id);
+            if (!chapter) return;
+
+            const modalConfirm = document.getElementById('delete-chapter-confirm-modal');
+            const textEl = document.getElementById('delete-chapter-text');
+            
+            if (chapter.scenes.length > 0) {
+                textEl.innerHTML = `Aquesta carpeta conté <strong>${chapter.scenes.length}</strong> elements. En voleu confirmar l'eliminació juntament amb tot el seu contingut?`;
+            } else {
+                textEl.innerHTML = 'Voleu eliminar aquesta carpeta de manera permanent?';
+            }
+
+            modalConfirm.classList.remove('hidden');
+            modalConfirm.classList.add('flex');
+        }
+
+        function closeDeleteChapterConfirmModal() {
+            document.getElementById('delete-chapter-confirm-modal').classList.add('hidden');
+            document.getElementById('delete-chapter-confirm-modal').classList.remove('flex');
+        }
+
+        function confirmDeleteChapter() {
+            const id = document.getElementById('chapter-id').value;
+            state.chapters = state.chapters.filter(c => c.id !== id);
+            closeDeleteChapterConfirmModal();
+            closeChapterModal();
+            renderBoard();
+            showToast("Carpeta eliminada correctament.");
+        }
+
+        // --- COL·LAPSAR / DESCOL·LAPSAR CARPETES ---
+        function toggleChapterCollapse(chapterId, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+
+            const ch = state.chapters.find(c => c.id === chapterId);
+            if (ch) {
+                ch.collapsed = !ch.collapsed;
+                
+                // Si la carpeta s'acaba de descol·lapsar, ajustem la seva mida al contingut
+                if (!ch.collapsed && ch.scenes && ch.scenes.length > 0) {
+                    let maxRight = 0;
+                    let maxBottom = 0;
+                    
+                    ch.scenes.forEach(sc => {
+                        const scX = sc.x !== undefined ? sc.x : 20;
+                        const scY = sc.y !== undefined ? sc.y : 20;
+                        const scW = sc.width || 256; 
+                        const scH = sc.height || 180; // Aproximació de l'alçada mínima de la targeta
+                        
+                        if (scX + scW > maxRight) maxRight = scX + scW;
+                        if (scY + scH > maxBottom) maxBottom = scY + scH;
+                    });
+                    
+                    // Afegim marges per la capçalera, el peu de la carpeta i padding general
+                    ch.width = Math.max(250, maxRight + 40);
+                    ch.height = Math.max(200, maxBottom + 140);
+                }
+                
+                renderBoard();
+            }
+        }
+
+        // --- INICIALITZACIÓ ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            const titleInput = document.getElementById('story-title');
+            titleInput.value = state.storyTitle || '';
+            
+            titleInput.addEventListener('input', (e) => {
+                state.storyTitle = e.target.value;
+            });
+
+            populateProppFunctions();
+            populateEmojiPickers();
+            renderBoard();
+            
+            // Assignació d'esdeveniments per als nous controls de la nota
+            document.querySelectorAll('.btn-size').forEach(btn => {
+                btn.addEventListener('click', (e) => selectSceneFontSize(e.currentTarget.dataset.size));
+            });
+            document.querySelectorAll('.btn-tcolor').forEach(btn => {
+                btn.addEventListener('click', (e) => selectSceneTextColor(e.currentTarget.dataset.color));
+            });
+            document.querySelectorAll('.btn-bgcolor').forEach(btn => {
+                btn.addEventListener('click', (e) => selectSceneBgColor(e.currentTarget.dataset.color));
+            });
+            document.getElementById('btn-icon-select').addEventListener('click', () => {
+                document.getElementById('emoji-picker-scene').classList.toggle('hidden');
+            });
+            
+            // Assignació d'esdeveniments per als nous controls de carpeta
+            document.querySelectorAll('.btn-chapter-size').forEach(btn => {
+                btn.addEventListener('click', (e) => selectChapterFontSize(e.currentTarget.dataset.size));
+            });
+            document.querySelectorAll('.btn-chapter-tcolor').forEach(btn => {
+                btn.addEventListener('click', (e) => selectChapterTextColor(e.currentTarget.dataset.color));
+            });
+            document.querySelectorAll('.btn-chapter-bgcolor').forEach(btn => {
+                btn.addEventListener('click', (e) => selectChapterBgColor(e.currentTarget.dataset.color));
+            });
+            document.getElementById('btn-chapter-icon-select').addEventListener('click', () => {
+                document.getElementById('emoji-picker-chapter').classList.toggle('hidden');
+            });
+            
+            // Tancar els pickers si es clica fora
+            document.addEventListener('click', (e) => {
+                const p1 = document.getElementById('emoji-picker-scene');
+                const b1 = document.getElementById('btn-icon-select');
+                if (p1 && !p1.contains(e.target) && !b1.contains(e.target)) p1.classList.add('hidden');
+                
+                const p2 = document.getElementById('emoji-picker-chapter');
+                const b2 = document.getElementById('btn-chapter-icon-select');
+                if (p2 && !p2.contains(e.target) && !b2.contains(e.target)) p2.classList.add('hidden');
+            });
+            
+            document.getElementById('scene-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'scene-modal') closeSceneModal();
+            });
+            document.getElementById('chapter-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'chapter-modal') closeChapterModal();
+            });
+            document.getElementById('new-project-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'new-project-modal') closeNewProjectModal();
+            });
+            
+            document.addEventListener('click', (e) => {
+                const sidebar = document.getElementById('characters-sidebar');
+                if (!sidebar.classList.contains('translate-x-full')) {
+                    const isClickInside = sidebar.contains(e.target);
+                    const isButtonClick = e.target.closest('button') && e.target.closest('button').innerText.includes('Identitats');
+                    if (!isClickInside && !isButtonClick) {
+                        closeCharactersSidebar();
+                    }
+                }
+            });
+            
+            try {
+                savedWorkspaceHandle = await loadWorkspaceHandle();
+            } catch (err) {}
+            
+            openWorkspaceModal();
+        });
+    </script>
+</body>
+</html>
